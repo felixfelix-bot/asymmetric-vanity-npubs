@@ -1080,7 +1080,7 @@ function runEntropyScanner(dataStr, minW) {
 // ─── Color Map ─────────────────────────────────────────────────────────────
 // Fixed, unique color per character using golden-ratio hue distribution.
 // Same character = same color EVERYWHERE (all grids, radials, sections).
-const CHARSET = 'qpzry9x8gf2tvdw0s3ju54nkhme6c7al';
+// Reuses CHARSET already defined above for bech32 encoding.
 const _colorCache = {};
 function colorForChar(c) {
   if (_colorCache[c]) return _colorCache[c];
