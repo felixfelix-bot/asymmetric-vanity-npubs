@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0d1117;color:#c9d1d9;font-family:'SF Mono',monospace;padding:20px}
+h1{color:#58a6ff;font-size:16px;margin-bottom:3px}
+h2{color:#f0883e;font-size:14px;margin:20px 0 8px;padding-bottom:4px;border-bottom:1px solid #30363d}
+.sub{color:#8b949e;font-size:12px;margin-bottom:15px}
+
+.card{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:16px;margin-bottom:15px}
+.card.match{border-color:#3fb950}
+.card.attack{border-color:#f85149}
+
+/* The wrapped fingerprint card */
+.fp-card{display:inline-block;padding:12px;background:#21262d;border-radius:10px;margin:5px}
+.fp-grid{display:grid;gap:3px}
+.fp-cell{border-radius:4px;display:flex;align-items:center;justify-content:center;font-weight:bold;color:rgba(255,255,255,0.7)}
+.fp-label{font-size:10px;color:#8b949e;text-align:center;margin-top:8px}
+.fp-z{font-size:11px;text-align:center;margin-top:3px}
+
+/* 1D string comparison */
+.fp-string{font-family:monospace;font-size:14px;letter-spacing:2px;margin:5px 0}
+
+/* Comparison layout */
+.compare-row{display:flex;gap:25px;flex-wrap:wrap;align-items:flex-start}
+
+/* Size comparison */
+.size-demo{display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap}
+
+/* Thumbnail */
+.thumb{width:60px;height:60px;border-radius:8px;overflow:hidden;padding:4px;background:#21262d;display:grid;gap:1px}
+.thumb-cell{border-radius:1px}
+</style>
+</head>
+<body>
+
+<h1>Wrapped 2D Fingerprint Card</h1>
+<div class="sub">Take the winning W section, wrap it into a square grid. Compact, memorable, easy to verify.</div>
+
+<h2>The Problem with 1D Strings</h2>
+<div class="card">
+<div style="font-size:13px;line-height:1.8;color:#c9d1d9">
+A 16-char winning section as a string:<br>
+<div style="font-family:monospace;font-size:18px;letter-spacing:3px;color:#f0883e;margin:8px 0;padding:8px;background:#21262d;border-radius:6px">
+q p q p q p q p q p q p q p q p
+</div>
+<br>
+Same 16 chars wrapped into 4×4:
+<div id="vs-string" style="display:flex;gap:30px;align-items:center;margin:15px 0;flex-wrap:wrap">
+<div>
+<div class="fp-label">1D string: hard to verify at a glance</div>
+<div class="fp-string" style="color:#f0883e;font-size:13px">qpqpqpqpqpqpqpqp</div>
+</div>
+<div style="font-size:20px;color:#8b949e">→</div>
+<div>
+<div class="fp-label">2D grid: instantly recognizable shape</div>
+<div id="vs-grid"></div>
+</div>
+</div>
+The 2D grid takes less space, creates a visual SHAPE, and is much easier to compare. You don't read each character — you recognize the pattern of colors.
+</div>
+</div>
+
+<h2>How Wrapping Works</h2>
+<div class="card">
+<div class="sub">Grid side = √W rounded up. Characters fill left-to-right, top-to-bottom.</div>
+
+<div class="size-demo">
+<div class="fp-card">
+<div class="fp-grid" id="demo-w4" style="grid-template-columns:repeat(2,1fr)"></div>
+<div class="fp-label">W=4 → 2×2 grid</div>
+</div>
+
+<div class="fp-card">
+<div class="fp-grid" id="demo-w9" style="grid-template-columns:repeat(3,1fr)"></div>
+<div class="fp-label">W=9 → 3×3 grid</div>
+</div>
+
+<div class="fp-card">
+<div class="fp-grid" id="demo-w16" style="grid-template-columns:repeat(4,1fr)"></div>
+<div class="fp-label">W=16 → 4×4 grid</div>
+</div>
+
+<div class="fp-card">
+<div class="fp-grid" id="demo-w25" style="grid-template-columns:repeat(5,1fr)"></div>
+<div class="fp-label">W=25 → 5×5 grid</div>
+</div>
+</div>
+
+<div style="font-size:12px;color:#8b949e;margin-top:10px">
+Short W (2×2, 3×3) = tiny grid, very simple shape, lower z-score.<br>
+Long W (4×4, 5×5) = larger grid, more complex shape, higher z-score.<br>
+The grid SIZE encodes the fingerprint strength. Bigger grid = more work invested.
+</div>
+</div>
+
+<h2>Alice vs Attacker — 2D Fingerprint Cards</h2>
+<div class="sub">Both have "meshmate" vanity. Different anti-phish fingerprints. Compare the 2D cards side by side.</div>
+
+<div class="compare-row">
+<div class="card match" style="flex:1;min-width:200px">
+<div style="font-size:13px;font-weight:bold;color:#3fb950;margin-bottom:8px">ALICE (the real identity)</div>
+<div style="font-size:11px;color:#8b949e;margin-bottom:4px">Vanity: <span style="color:#3fb950;font-weight:bold">meshmate</span></div>
+<div style="font-size:11px;color:#8b949e;margin-bottom:8px">Winning W: <span style="color:#d2a8ff">16 → 4×4 grid</span></div>
+
+<div class="fp-card" style="margin:10px auto">
+<div class="fp-grid" id="alice-card" style="grid-template-columns:repeat(4,1fr)"></div>
+<div class="fp-z" style="color:#f0883e">z = 6.31 (EXTREME)</div>
+</div>
+
+<div style="font-size:11px;color:#8b949e;margin-top:8px;text-align:center">
+Alice's card: red-teal checkerboard<br>
+<span style="color:#3fb950">Memorize this shape.</span>
+</div>
+</div>
+
+<div class="card attack" style="flex:1;min-width:200px">
+<div style="font-size:13px;font-weight:bold;color:#f85149;margin-bottom:8px">ATTACKER (impersonator)</div>
+<div style="font-size:11px;color:#8b949e;margin-bottom:4px">Vanity: <span style="color:#3fb950;font-weight:bold">meshmate</span></div>
+<div style="font-size:11px;color:#8b949e;margin-bottom:8px">Winning W: <span style="color:#d2a8ff">9 → 3×3 grid</span></div>
+
+<div class="fp-card" style="margin:10px auto">
+<div class="fp-grid" id="attacker-card" style="grid-template-columns:repeat(3,1fr)"></div>
+<div class="fp-z" style="color:#f39c12">z = 5.84 (STRONG)</div>
+</div>
+
+<div style="font-size:11px;color:#8b949e;margin-top:8px;text-align:center">
+Attacker's card: blue-yellow diagonal stripe<br>
+<span style="color:#f85149">DIFFERENT shape, different size!</span>
+</div>
+</div>
+</div>
+
+<div class="card" style="background:#1c1612;border-color:#f0883e">
+<div style="font-size:13px;line-height:1.8">
+<b style="color:#f0883e">Why this is hard to forge:</b><br><br>
+Alice's card is a <b>4×4 checkerboard of red+teal</b>. That's specific.<br>
+To forge it, attacker needs: same W=16, same position, same 2 chars {q,p}, same arrangement.<br>
+Cost: astronomically higher than finding ANY 4×4 pattern.<br><br>
+Attacker CAN make their own card (3×3 blue-yellow). But it looks <b>completely different</b>.<br>
+User sees: "That's not Alice's red-teal checkerboard." <span style="color:#3fb950">Phishing detected.</span>
+</div>
+</div>
+
+<h2>Thumbnail Size — This Works in Chat Apps</h2>
+<div class="sub">The wrapped grid scales down beautifully. Identicon-sized, fits next to a contact name.</div>
+
+<div class="card">
+<div style="display:flex;gap:30px;align-items:center;flex-wrap:wrap">
+<div style="text-align:center">
+<div id="thumb-alice"></div>
+<div class="fp-label" style="margin-top:5px">Alice</div>
+</div>
+<div style="text-align:center">
+<div id="thumb-attacker"></div>
+<div class="fp-label" style="margin-top:5px">Attacker</div>
+</div>
+<div style="text-align:center">
+<div id="thumb-attacker2"></div>
+<div class="fp-label" style="margin-top:5px">Attacker 2</div>
+</div>
+<div style="font-size:12px;color:#8b949e;max-width:200px">
+At thumbnail size, you still instantly see:<br>
+Alice = red-teal block<br>
+Attacker 1 = blue-yellow block<br>
+Attacker 2 = green-purple block<br>
+<span style="color:#3fb950">All different. All detectable.</span>
+</div>
+</div>
+</div>
+
+<h2>The Full Picture — What a Nostr Client Would Show</h2>
+<div class="card">
+<div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap;background:#21262d;padding:15px;border-radius:10px">
+<div id="client-thumb"></div>
+<div>
+<div style="font-size:16px;color:#3fb950;font-weight:bold">meshmate</div>
+<div style="font-size:11px;color:#8b949e;margin-top:2px">npub1meshmate...qpqpqpqpqpqpqpqp...e6mua7l</div>
+<div style="font-size:10px;color:#d2a8ff;margin-top:4px">PoW: z=6.31 | Fingerprint: 4×4 verified ✓</div>
+</div>
+<div style="margin-left:auto;font-size:20px;color:#3fb950">✓</div>
+</div>
+
+<div style="height:10px"></div>
+
+<div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap;background:#2a1010;padding:15px;border-radius:10px;border:1px solid #f85149">
+<div id="client-thumb-attack"></div>
+<div>
+<div style="font-size:16px;color:#f85149;font-weight:bold">meshmate</div>
+<div style="font-size:11px;color:#8b949e;margin-top:2px">npub1meshmate...rzrzrzrzrz...e6mua7l</div>
+<div style="font-size:10px;color:#f85149;margin-top:4px">PoW: z=5.84 | Fingerprint: 3×3 DOES NOT MATCH ⚠</div>
+</div>
+<div style="margin-left:auto;font-size:20px;color:#f85149">⚠</div>
+</div>
+
+<div style="font-size:12px;color:#8b949e;margin-top:12px;text-align:center">
+The client shows the name + the fingerprint card. User recognizes Alice by the shape of her card, not the string.
+</div>
+</div>
+
+</body>
+
+<script>
+const C = {
+'q':'#ff6b6b','p':'#4ecdc4','z':'#45b7d1','r':'#f9ca24','y':'#6c5ce7','9':'#a29bfe',
+'x':'#fd79a8','8':'#fdcb6e','g':'#6ab04c','f':'#badc58','2':'#00b894','t':'#00cec9',
+'v':'#0984e3','d':'#6c5ce7','w':'#e17055','0':'#dfe6e9','s':'#2d3436','3':'#fab1a0',
+'j':'#74b9ff','n':'#a29bfe','5':'#55efc4','4':'#81ecec','k':'#ffeaa7','h':'#dfe6e9',
+'c':'#b2bec3','e':'#636e72','6':'#2d3436','m':'#e84393','u':'#fd79a8','a':'#e17055','7':'#00b894','l':'#0984e3'
+};
+
+function drawGrid(id, chars, cellSize) {
+  const el = document.getElementById(id);
+  let html = '';
+  for(const ch of chars) {
+    html += `<div class="fp-cell" style="width:${cellSize}px;height:${cellSize}px;background:${C[ch]};font-size:${cellSize/3}px">${ch}</div>`;
+  }
+  el.innerHTML = html;
+}
+
+function drawThumb(id, chars, gridSize) {
+  const el = document.getElementById(id);
+  let html = `<div class="thumb" style="grid-template-columns:repeat(${gridSize},1fr);width:${gridSize*14}px;height:${gridSize*14}px">`;
+  for(const ch of chars) {
+    html += `<div class="thumb-cell" style="background:${C[ch]}"></div>`;
+  }
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+// 1D vs 2D comparison
+drawGrid('vs-grid', 'qpqpqpqpqpqpqpqp', 30);
+
+// Size demos
+drawGrid('demo-w4', 'qpqp', 28);
+drawGrid('demo-w9', 'qpzqpzqpz', 28);
+drawGrid('demo-w16', 'qpqpqpqpqpqpqpqp', 28);
+drawGrid('demo-w25', 'qpzryqpzryqpzryqpzryqpzry', 24); // trim to 25
+
+// Alice: 4×4 red-teal checkerboard (q,p alternating)
+drawGrid('alice-card', 'qpqpqpqpqpqpqpqp', 36);
+
+// Attacker: 3×3 blue-yellow pattern (z,r,y)
+drawGrid('attacker-card', 'zrzryzyrz', 36);
+
+// Thumbnails
+drawThumb('thumb-alice', 'qpqpqpqpqpqpqpqp', 4);
+drawThumb('thumb-attacker', 'zrzryzyrz', 3);
+// Attacker 2: green-purple
+drawThumb('thumb-attacker2', 'g9g99g9g9', 3);
+
+// Client mockup thumbnails
+drawThumb('client-thumb', 'qpqpqpqpqpqpqpqp', 4);
+drawThumb('client-thumb-attack', 'zrzryzyrz', 3);
+</script>
+</html>

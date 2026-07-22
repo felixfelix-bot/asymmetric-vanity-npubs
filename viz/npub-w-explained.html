@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0d1117;color:#c9d1d9;font-family:'SF Mono',monospace;padding:20px}
+h1{color:#58a6ff;font-size:16px;margin-bottom:3px}
+h2{color:#f0883e;font-size:14px;margin:20px 0 8px;padding-bottom:4px;border-bottom:1px solid #30363d}
+.sub{color:#8b949e;font-size:12px;margin-bottom:15px}
+
+.card{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:16px;margin-bottom:15px}
+
+/* Sliding window demo */
+.window-demo{display:flex;align-items:center;gap:4px;margin:10px 0;font-size:16px}
+.char{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:4px;font-weight:bold}
+.window-bracket{display:inline-flex;flex-direction:column;align-items:center;margin:0 2px}
+.bracket-label{font-size:9px;color:#8b949e;margin-top:2px}
+
+/* The NPUB strip used in all demos */
+.npub-strip{display:flex;gap:1px;margin:15px 0;flex-wrap:wrap}
+.strip-cell{width:20px;height:20px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:10px;color:rgba(255,255,255,0.6)}
+
+/* 2D heatmaps */
+.heatmap-grid{display:grid;gap:1px;margin:10px 0}
+.hm-cell{width:28px;height:28px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:bold}
+
+/* Legend */
+.legend{display:flex;gap:15px;align-items:center;margin:10px 0;font-size:11px}
+.legend-item{display:flex;align-items:center;gap:5px}
+.legend-swatch{width:14px;height:14px;border-radius:3px}
+</style>
+</head>
+<body>
+
+<h1>Understanding "W" — The Window Size</h1>
+<div class="sub">W is simply: how many consecutive characters are we looking at?</div>
+
+<h2>The Sliding Window</h2>
+<div class="card">
+<div class="sub">Imagine a magnifying glass that slides across the NPUB. W = how wide the lens is.</div>
+
+<div style="font-size:13px;margin:5px 0 15px;color:#8b949e">Same NPUB, same position, different window sizes:</div>
+
+<!-- Show the same NPUB section with different W values -->
+<div style="font-family:monospace;font-size:18px;letter-spacing:2px;margin:10px 0;color:#8b949e">
+npub1<span style="color:#c9d1d9">q&nbsp;p&nbsp;z&nbsp;r&nbsp;y&nbsp;q&nbsp;p&nbsp;z&nbsp;r&nbsp;y&nbsp;q&nbsp;p&nbsp;z&nbsp;r&nbsp;y&nbsp;</span>...
+</div>
+
+<div style="margin:20px 0">
+
+<div style="margin:8px 0">
+<span style="color:#3fb950;font-weight:bold">W=3:</span> look at 3 chars at a time
+<div style="font-family:monospace;font-size:16px;margin:4px 0 4px 20px;letter-spacing:4px">
+<span style="background:#3fb95033;padding:2px 4px;border-radius:3px;color:#3fb950">q p z</span> <span style="color:#484f58">r y q p z r y q p z r y</span>
+</div>
+</div>
+
+<div style="margin:8px 0">
+<span style="color:#58a6ff;font-weight:bold">W=5:</span> look at 5 chars at a time
+<div style="font-family:monospace;font-size:16px;margin:4px 0 4px 20px;letter-spacing:4px">
+<span style="background:#58a6ff33;padding:2px 4px;border-radius:3px;color:#58a6ff">q p z r y</span> <span style="color:#484f58">q p z r y q p z r y</span>
+</div>
+</div>
+
+<div style="margin:8px 0">
+<span style="color:#f0883e;font-weight:bold">W=8:</span> look at 8 chars at a time
+<div style="font-family:monospace;font-size:16px;margin:4px 0 4px 20px;letter-spacing:4px">
+<span style="background:#f0883e33;padding:2px 4px;border-radius:3px;color:#f0883e">q p z r y q p z</span> <span style="color:#484f58">r y q p z r y</span>
+</div>
+</div>
+
+<div style="margin:8px 0">
+<span style="color:#f85149;font-weight:bold">W=16:</span> look at 16 chars at a time
+<div style="font-family:monospace;font-size:16px;margin:4px 0 4px 20px;letter-spacing:4px">
+<span style="background:#f8514933;padding:2px 4px;border-radius:3px;color:#f85149">q p z r y q p z r y q p z r y</span>
+</div>
+</div>
+
+</div>
+
+<div style="font-size:12px;color:#8b949e;margin-top:15px;padding:10px;background:#21262d;border-radius:8px">
+<b style="color:#c9d1d9">Why does W matter?</b><br><br>
+A short window (W=3) asks: "Are these 3 characters unusually repetitive?"<br>
+A long window (W=16) asks: "Are these 16 characters unusually repetitive?"<br><br>
+A pattern like "qqq" is surprising at W=3 but meaningless at W=16.<br>
+A pattern like "qpqpqpqpqpqpqpqp" is EXTREMELY surprising at W=16 but normal at W=3.<br><br>
+<b>We scan all W values (3,4,5,...,20) to catch outliers at every scale.</b>
+</div>
+</div>
+
+<h2>Visualizing W — Option 1: The 2D Heatmap (your idea!)</h2>
+<div class="sub">X-axis = position in NPUB (0-57). Y-axis = window size (W=3 to W=20). Color = z-score (green=normal, red=extreme).</div>
+
+<div class="card">
+<div class="legend">
+<div class="legend-item"><div class="legend-swatch" style="background:#2d3436"></div> z<1 (normal)</div>
+<div class="legend-item"><div class="legend-swatch" style="background:#1a5276"></div> z≈2 (mild)</div>
+<div class="legend-item"><div class="legend-swatch" style="background:#2e86c1"></div> z≈3 (notable)</div>
+<div class="legend-item"><div class="legend-swatch" style="background:#f39c12"></div> z≈5 (strong)</div>
+<div class="legend-item"><div class="legend-swatch" style="background:#c0392b"></div> z>6 (extreme)</div>
+</div>
+
+<div style="font-size:12px;color:#8b949e;margin:5px 0">NPUB with a 16-char low-entropy section in the middle (positions 20-35):</div>
+<div id="heatmap-ground" style="margin:10px 0"></div>
+<div style="font-size:10px;color:#484f58;display:flex;gap:0;margin-left:30px">
+<span style="width:28px;text-align:center">0</span>
+<span style="width:28px;text-align:center">5</span>
+<span style="width:28px;text-align:center">10</span>
+<span style="width:28px;text-align:center">15</span>
+<span style="width:28px;text-align:center">20</span>
+<span style="width:28px;text-align:center">25</span>
+<span style="width:28px;text-align:center">30</span>
+<span style="width:28px;text-align:center">35</span>
+<span style="width:28px;text-align:center">40</span>
+<span style="width:28px;text-align:center">45</span>
+<span style="width:28px;text-align:center">50</span>
+<span style="width:28px;text-align:center">55</span>
+</div>
+<div style="font-size:10px;color:#8b949e;margin-top:5px">Position in NPUB →</div>
+
+<div style="font-size:12px;color:#8b949e;margin:15px 0">Compare: a RANDOM NPUB (no grinding):</div>
+<div id="heatmap-random" style="margin:10px 0"></div>
+
+<div style="font-size:12px;color:#8b949e;margin:5px 0">Read it like a weather radar: the red blob in the ground NPUB IS the fingerprint. Random NPUB has no hot zone.</div>
+</div>
+
+<h2>Visualizing W — Option 2: Simpler — Just Show the Winner</h2>
+<div class="sub">Don't show all W values. Show which W won, and what the pattern looks like at that scale.</div>
+
+<div class="card">
+<div style="display:flex;gap:20px;flex-wrap:wrap">
+<div style="flex:1;min-width:250px">
+<div style="font-size:13px;font-weight:bold;color:#3fb950;margin-bottom:8px">Ground NPUB</div>
+<div style="font-size:11px;color:#8b949e;margin-bottom:4px">Scanner found: W=16 at position 20</div>
+<div style="font-size:11px;color:#d2a8ff;margin-bottom:8px">Z-score: 6.31 (EXTREME)</div>
+<div id="winner-ground" style="margin:8px 0"></div>
+</div>
+<div style="flex:1;min-width:250px">
+<div style="font-size:13px;font-weight:bold;color:#f85149;margin-bottom:8px">Attacker NPUB</div>
+<div style="font-size:11px;color:#8b949e;margin-bottom:4px">Scanner found: W=10 at position 35</div>
+<div style="font-size:11px;color:#d2a8ff;margin-bottom:8px">Z-score: 5.84 (STRONG but different)</div>
+<div id="winner-attacker" style="margin:8px 0"></div>
+</div>
+</div>
+<div style="font-size:12px;color:#8b949e;margin-top:10px;padding:10px;background:#21262d;border-radius:8px">
+The W value tells you the SHAPE of the fingerprint.<br>
+Ground: a long band of 2 colors (W=16, 2 chars).<br>
+Attacker: a shorter cluster of 3 colors (W=10, 3 chars).<br>
+Different W = different pattern shape = instantly distinguishable.
+</div>
+</div>
+
+<h2>Visualizing W — Option 3: 1D "Seismograph"</h2>
+<div class="sub">Collapse W into a single dimension. Each bar = strongest outlier at that position, across ALL W values.</div>
+
+<div class="card">
+<div id="seismo-ground" style="margin:10px 0"></div>
+<div style="font-size:10px;color:#484f58;display:flex;gap:0;margin-left:0">
+<span style="width:16px;text-align:center">0</span>
+<span style="width:48px"></span>
+<span style="width:48px;text-align:center">10</span>
+<span style="width:48px"></span>
+<span style="width:48px;text-align:center">20</span>
+<span style="width:48px"></span>
+<span style="width:48px;text-align:center">30</span>
+<span style="width:48px"></span>
+<span style="width:48px;text-align:center">40</span>
+<span style="width:48px"></span>
+<span style="width:48px;text-align:center">50</span>
+</div>
+<div style="font-size:10px;color:#8b949e;margin-top:5px">Position in NPUB →</div>
+
+<div style="font-size:12px;color:#8b949e;margin-top:10px">
+The spike IS the fingerprint. Bar height = how surprising the pattern is at that position. Color = which W value found it.
+<div class="legend" style="margin-top:8px">
+<div class="legend-item"><div class="legend-swatch" style="background:#3fb950"></div> W=3-6 (short patterns)</div>
+<div class="legend-item"><div class="legend-swatch" style="background:#f39c12"></div> W=7-12 (medium)</div>
+<div class="legend-item"><div class="legend-swatch" style="background:#c0392b"></div> W=13-20 (long patterns)</div>
+</div>
+</div>
+</div>
+
+</body>
+
+<script>
+const B32 = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+const C = {
+'q':'#ff6b6b','p':'#4ecdc4','z':'#45b7d1','r':'#f9ca24','y':'#6c5ce7','9':'#a29bfe',
+'x':'#fd79a8','8':'#fdcb6e','g':'#6ab04c','f':'#badc58','2':'#00b894','t':'#00cec9',
+'v':'#0984e3','d':'#6c5ce7','w':'#e17055','0':'#dfe6e9','s':'#2d3436','3':'#fab1a0',
+'j':'#74b9ff','n':'#a29bfe','5':'#55efc4','4':'#81ecec','k':'#ffeaa7','h':'#dfe6e9',
+'c':'#b2bec3','e':'#636e72','6':'#2d3436','m':'#e84393','u':'#fd79a8','a':'#e17055','7':'#00b894','l':'#0984e3'
+};
+
+function rnd() { return B32[Math.floor(Math.random()*32)]; }
+
+// Generate a ground NPUB: random except positions 20-35 use only {q,p}
+function genGround() {
+  let d = [];
+  for(let i=0;i<58;i++) d.push(rnd());
+  for(let i=20;i<36;i++) d[i] = Math.random()<0.5 ? 'q' : 'p';
+  return d;
+}
+
+// Random NPUB
+function genRandom() {
+  return Array.from({length:58}, () => rnd());
+}
+
+// Entropy
+function ent(window) {
+  const f={}; for(const c of window) f[c]=(f[c]||0)+1;
+  let h=0; for(const c in f){const p=f[c]/window.length; h-=p*Math.log2(p);} return h;
+}
+
+// Baseline stats (approximate from our data)
+const BASELINE = {
+3:{m:0.89,s:0.23},4:{m:1.35,s:0.27},5:{m:1.66,s:0.26},6:{m:1.91,s:0.22},
+7:{m:2.13,s:0.20},8:{m:2.32,s:0.19},9:{m:2.48,s:0.18},10:{m:2.63,s:0.18},
+12:{m:2.87,s:0.17},14:{m:3.07,s:0.16},16:{m:3.24,s:0.15},18:{m:3.38,s:0.15},20:{m:3.51,s:0.14}
+};
+const WSIZES = [3,4,5,6,7,8,9,10,12,14,16,18,20];
+
+function zScore(h, w) {
+  const b = BASELINE[w]; if(!b) return 0;
+  return Math.max(0,(b.m - h) / b.s);
+}
+
+function zColor(z) {
+  if(z < 1) return '#2d3436';
+  if(z < 2) return '#1a5276';
+  if(z < 3) return '#2e86c1';
+  if(z < 4) return '#5dade2';
+  if(z < 5) return '#f39c12';
+  if(z < 6) return '#e67e22';
+  return '#c0392b';
+}
+
+// === 2D HEATMAP ===
+function drawHeatmap(id, data) {
+  const el = document.getElementById(id);
+  let html = `<div class="heatmap-grid" style="grid-template-columns:30px repeat(${data.length},1fr);">`;
+  
+  // For each window size (top to bottom = largest to smallest)
+  for(let wi=WSIZES.length-1; wi>=0; wi--) {
+    const w = WSIZES[wi];
+    html += `<div style="font-size:9px;color:#8b949e;display:flex;align-items:center;justify-content:center">W${w}</div>`;
+    for(let pos=0; pos<data.length; pos++) {
+      if(pos + w > data.length) {
+        html += `<div class="hm-cell" style="background:transparent"></div>`;
+      } else {
+        const h = ent(data.slice(pos, pos+w));
+        const z = zScore(h, w);
+        html += `<div class="hm-cell" style="background:${zColor(z)}" title="W${w} pos${pos}: z=${z.toFixed(1)}"></div>`;
+      }
+    }
+  }
+  // Header row
+  html += `<div></div>`;
+  for(let i=0;i<data.length;i++) {
+    html += `<div style="font-size:7px;color:#484f58;text-align:center">${i%10===0?i:''}</div>`;
+  }
+  
+  el.innerHTML = html;
+}
+
+const groundData = genGround();
+const randomData = genRandom();
+drawHeatmap('heatmap-ground', groundData);
+drawHeatmap('heatmap-random', randomData);
+
+// === WINNER DISPLAY ===
+function drawWinner(id, data, wVal, pos, label) {
+  const el = document.getElementById(id);
+  let html = `<div class="sub">${label}: W=${wVal} at position ${pos}</div>`;
+  html += '<div style="display:flex;gap:1px;flex-wrap:wrap;margin:5px 0">';
+  for(let i=0;i<data.length;i++) {
+    const inWin = i>=pos && i<pos+wVal;
+    html += `<div class="strip-cell" style="background:${C[data[i]]};${inWin?'box-shadow:0 0 0 2px #f0883e;':''}">${data[i]}</div>`;
+  }
+  html += '</div>';
+  
+  // Zoomed-in window
+  const win = data.slice(pos, pos+wVal);
+  html += `<div style="font-size:11px;color:#8b949e;margin-top:8px">Zoomed pattern (${wVal} chars):</div>`;
+  html += '<div style="display:flex;gap:2px;margin:4px 0">';
+  for(const ch of win) {
+    html += `<div style="width:24px;height:24px;border-radius:4px;background:${C[ch]};display:flex;align-items:center;justify-content:center;font-size:11px;color:rgba(255,255,255,0.7);font-weight:bold">${ch}</div>`;
+  }
+  html += '</div>';
+  
+  const h = ent(win);
+  const z = zScore(h, wVal);
+  html += `<div style="font-size:11px;color:#d2a8ff;margin-top:4px">Entropy: ${h.toFixed(2)} bits/char → Z-score: ${z.toFixed(2)}</div>`;
+  
+  el.innerHTML = html;
+}
+
+// Generate attacker data with different pattern
+let attackerData = genRandom();
+for(let i=35;i<45;i++) attackerData[i] = ['z','r','y'][Math.floor(Math.random()*3)];
+
+drawWinner('winner-ground', groundData, 16, 20, 'Low-entropy section');
+drawWinner('winner-attacker', attackerData, 10, 35, 'Low-entropy section');
+
+// === SEISMOGRAPH ===
+function drawSeismo(id, data) {
+  const el = document.getElementById(id);
+  
+  // For each position, find max z-score across all W
+  const posData = [];
+  for(let pos=0; pos<data.length; pos++) {
+    let maxZ = 0;
+    let bestW = 0;
+    for(const w of WSIZES) {
+      if(pos + w > data.length) continue;
+      const h = ent(data.slice(pos, pos+w));
+      const z = zScore(h, w);
+      if(z > maxZ) { maxZ = z; bestW = w; }
+    }
+    posData.push({pos, z: maxZ, w: bestW});
+  }
+  
+  let html = '<div style="display:flex;align-items:flex-end;gap:1px;height:80px;">';
+  for(const pd of posData) {
+    const heightPct = Math.min(100, (pd.z / 7) * 100);
+    let color;
+    if(pd.w <= 6) color = '#3fb950';
+    else if(pd.w <= 12) color = '#f39c12';
+    else color = '#c0392b';
+    
+    html += `<div style="width:12px;height:${heightPct}%;background:${color};border-radius:2px 2px 0 0;min-height:2px;" title="pos ${pd.pos}: z=${pd.z.toFixed(1)} (W=${pd.w})"></div>`;
+  }
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+drawSeismo('seismo-ground', groundData);
+
+</script>
+</html>
