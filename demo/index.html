@@ -517,6 +517,13 @@
     font-size: 14px;
     color: var(--orange);
   }
+  .metric-nested {
+    margin-left: 20px;
+    font-size: 13px;
+    color: var(--blue);
+    border-left: 3px solid var(--blue);
+    padding-left: 12px;
+  }
   .metric-example {
     background: rgba(255,166,87,0.08);
     padding: 8px 12px;
@@ -623,12 +630,25 @@
     <div class="metric-card">
       <h3>Z-Score: How Rare Is This Pattern?</h3>
       <p>The z-score measures how unusual a window is compared to random expectation.</p>
-      <div class="metric-formula">z = (expected_entropy − actual_entropy) ÷ std_deviation</div>
-      <p>A random 16-character window has ~3.57 bits of entropy. If we find one with only 1.5 bits, that's many standard deviations below normal.</p>
+      <div class="metric-formula">z = (expected_entropy − actual_entropy) ÷ σ</div>
+      <p>Where σ (standard deviation) measures how much entropy normally varies in random windows. Here's how it's calculated:</p>
+      <div class="metric-formula metric-nested">σ = √( (1/n) × Σ (Hᵢ − H̄)² )</div>
+      <p>Step by step:</p>
       <div class="metric-example">
-        <strong>z = 2</strong> → top 2.3% of windows (1 in 43)<br>
-        <strong>z = 4</strong> → top 0.003% (1 in 33,000)<br>
-        <strong>z = 8</strong> → astronomically rare
+        <strong>Step 1:</strong> Generate thousands of random NPUBs<br>
+        <strong>Step 2:</strong> Measure each window's entropy Hᵢ<br>
+        <strong>Step 3:</strong> Calculate the average (mean) entropy H̄ = 3.57 bits for W=16<br>
+        <strong>Step 4:</strong> For each window, compute how far it deviates from the mean: (Hᵢ − H̄)<br>
+        <strong>Step 5:</strong> Square each deviation: (Hᵢ − H̄)² — squaring makes all values positive and emphasizes outliers<br>
+        <strong>Step 6:</strong> Average all squared deviations, then take the square root: that's σ<br>
+        <br>
+        For W=16: H̄ = 3.571 bits, σ = 0.187 bits
+      </div>
+      <p>A random 16-character window has ~3.57 bits of entropy on average, with σ=0.187. If we find one with only 1.5 bits, that's (3.571 − 1.5) ÷ 0.187 = z=11.1 — eleven standard deviations below the mean.</p>
+      <div class="metric-example">
+        <strong>z = 2</strong> → 2σ below mean → top 2.3% of windows (1 in 43)<br>
+        <strong>z = 4</strong> → 4σ below mean → top 0.003% (1 in 33,000)<br>
+        <strong>z = 8</strong> → 8σ below mean → astronomically rare
       </div>
       <p>Higher z = harder for an attacker to replicate by chance. This is our <strong>anti-forgery</strong> metric.</p>
     </div>
