@@ -648,23 +648,23 @@
     
     <div class="metric-card highlight-card">
       <h3>Quality: The Best of Both Worlds</h3>
-      <div class="metric-formula">quality = z ÷ unique_character_count</div>
+      <div class="metric-formula">quality = z ÷ (unique_chars)²</div>
       <p>This single metric balances both goals:</p>
       <div class="metric-table">
         <div class="metric-row metric-header">
           <div>Pattern</div><div>z</div><div>unique</div><div>quality</div><div>verdict</div>
         </div>
         <div class="metric-row">
-          <div>W=16, 3 chars</div><div>8.0</div><div>3</div><div>2.67</div><div class="good">★ recognizable + rare</div>
+          <div>W=16, 3 chars</div><div>8.0</div><div>3</div><div>0.89</div><div class="good">★ recognizable + rare</div>
         </div>
         <div class="metric-row">
-          <div>W=49, 8 chars</div><div>5.0</div><div>8</div><div>0.63</div><div class="bad">rare but unrecognizable</div>
+          <div>W=49, 8 chars</div><div>5.0</div><div>8</div><div>0.08</div><div class="bad">rare but unrecognizable</div>
         </div>
         <div class="metric-row">
-          <div>W=16, 2 chars</div><div>5.0</div><div>2</div><div>2.50</div><div class="good">★ very recognizable</div>
+          <div>W=16, 2 chars</div><div>5.0</div><div>2</div><div>1.25</div><div class="good">★ very recognizable</div>
         </div>
         <div class="metric-row">
-          <div>W=25, 7 chars</div><div>6.0</div><div>7</div><div>0.86</div><div class="bad">meh</div>
+          <div>W=25, 7 chars</div><div>6.0</div><div>7</div><div>0.12</div><div class="bad">meh</div>
         </div>
       </div>
       <p>The scanner optimizes for the highest quality score. This naturally selects patterns that are <strong>both rare (high z) and human-recognizable (few unique chars)</strong>.</p>
@@ -885,7 +885,7 @@ function uniqueCharCount(str) {
 
 function runEntropyScanner(dataStr, minW) {
   minW = minW || 16;
-  let bestQuality = -1;  // composite: z / unique_chars
+  let bestQuality = -1;  // composite: z / unique_chars^2
   let bestZ = -1;
   let bestW = 0;
   let bestPos = 0;
@@ -903,7 +903,7 @@ function runEntropyScanner(dataStr, minW) {
       let uniq = uniqueCharCount(window);
       // Composite quality: rarity (z) balanced by recognizability (fewer unique chars)
       // Fewer unique chars = more recognizable to humans
-      let quality = z / uniq;
+      let quality = z / (uniq * uniq);
       allResults.push({W, pos, ent, z, uniq, quality});
       if (quality > bestQuality) {
         bestQuality = quality;
@@ -1237,7 +1237,7 @@ window.generateSection2 = function() {
     html += '<div class="grind-stat"><span class="grind-num">' + satCount + '</span><span class="grind-lbl">"sat" matches</span></div>';
     if (bestZ > 0) {
       html += '<div class="grind-stat"><span class="grind-num">' + best.scan.bestUnique + '</span><span class="grind-lbl">unique chars (lower = better)</span></div>';
-      html += '<div class="grind-stat"><span class="grind-num">q=' + best.scan.bestQuality.toFixed(2) + '</span><span class="grind-lbl">quality (z÷unique)</span></div>';
+      html += '<div class="grind-stat"><span class="grind-num">q=' + best.scan.bestQuality.toFixed(2) + '</span><span class="grind-lbl">quality (z÷unique²)</span></div>';
     } else {
       html += '<div class="grind-stat"><span class="grind-num">—</span><span class="grind-lbl">best quality</span></div>';
     }
@@ -1306,7 +1306,7 @@ function runSection3() {
   html += '<div><span class="label">Window size (W):</span> <span class="value">' + result.bestW + '</span> (' + Math.sqrt(result.bestW) + '×' + Math.sqrt(result.bestW) + ' grid)</div>';
   html += '<div><span class="label">Unique characters:</span> <span class="value">' + result.bestUnique + '</span> out of ' + result.bestW + ' (fewer = more recognizable)</div>';
   html += '<div><span class="label">Z-score:</span> <span class="value">' + result.bestZ.toFixed(2) + '</span> (rarity vs random)</div>';
-  html += '<div><span class="label">Quality (z÷unique):</span> <span class="value">' + result.bestQuality.toFixed(2) + '</span></div>';
+  html += '<div><span class="label">Quality (z÷unique²):</span> <span class="value">' + result.bestQuality.toFixed(2) + '</span></div>';
   html += '<div><span class="label">Entropy:</span> <span class="value">' + result.bestEntropy.toFixed(3) + '</span> bits (expected ~' + BASELINE[result.bestW].mean + ')</div>';
   html += '<div><span class="label">Winning chars:</span> <span class="value">' + winnerChars + '</span></div>';
   html += '</div>';
