@@ -745,6 +745,13 @@ window.generateSection2 = function() {
         let npub = getNpubForPrivKey(privKey);
         if (checkVanity(npub, word)) {
           results.push(npub);
+          if (results.length >= 2) {
+            finishSection2(results[0], results[1], word, count);
+            return;
+          }
+          // Found 1 of 2, keep searching
+          document.getElementById('s2-result').innerHTML = '<div class="status-msg loading">Found 1 of 2 keys with "' + word + '"… continuing…</div>';
+          setTimeout(findOne, 10);
           return;
         }
       }
@@ -752,8 +759,6 @@ window.generateSection2 = function() {
       if (results.length < 2) {
         document.getElementById('s2-result').innerHTML = '<div class="status-msg loading">Searching for "' + word + '"… ' + count + ' keys tried</div>';
         setTimeout(findOne, 10);
-      } else {
-        finishSection2(results[0], results[1], word, count);
       }
     }
     function finishSection2(npub1, npub2, word, totalTried) {
