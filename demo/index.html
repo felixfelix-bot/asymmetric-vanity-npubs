@@ -640,6 +640,9 @@ window.revealSection = function(n) {
     sec.scrollIntoView({behavior: 'smooth', block: 'start'});
   }
   // Auto-run sections that need computation
+  if (n === 2 && !state.sec2keys) {
+    generateSection2();
+  }
   if (n === 3 && state.aliceNpub && !state.aliceScan) {
     runSection3();
   }
