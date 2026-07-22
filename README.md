@@ -55,6 +55,7 @@ different fingerprint is instantly visible.
 - [ADR-004: Sequential Grinding Strategy](docs/adr/ADR-004-sequential-grinding-strategy.md)
 - [ADR-005: Wrapped 2D Fingerprint Card Rendering](docs/adr/ADR-005-wrapped-2d-fingerprint-card.md)
 - [ADR-006: Offset Grinding — VNAAS Without Key Custody](docs/adr/ADR-006-offset-grinding-vnaas.md)
+- [ADR-008: Atomic Sale of Grinding Offsets](docs/adr/ADR-008-atomic-offset-sale.md)
 - [ADR-007: Tooling Strategy — Fork Rana for Offset Grinding](docs/adr/ADR-007-tooling-strategy-fork-rana.md)
 
 ## Repository Structure

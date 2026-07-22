@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0d1117;color:#c9d1d9;font-family:'SF Mono',monospace;padding:20px}
+h1{color:#58a6ff;font-size:16px;margin-bottom:3px}
+h2{color:#f0883e;font-size:14px;margin:20px 0 8px;padding-bottom:4px;border-bottom:1px solid #30363d}
+.sub{color:#8b949e;font-size:12px;margin-bottom:15px}
+
+.card{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:16px;margin-bottom:12px}
+.card.best{border-color:#3fb950}
+.card.good{border-color:#58a6ff}
+.card.ok{border-color:#f39c12}
+.card.bad{border-color:#f85149}
+
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:bold;margin-left:8px}
+.tag.yes{background:#3fb95022;color:#3fb950}
+.tag.no{background:#f8514922;color:#f85149}
+.tag.maybe{background:#f39c1222;color:#f39c12}
+
+.step{display:flex;gap:10px;margin:6px 0;align-items:flex-start}
+.step-num{background:#30363d;color:#58a6ff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;flex-shrink:0}
+.step-text{font-size:12px;line-height:1.6;padding-top:3px}
+
+.flow{background:#21262d;border-radius:8px;padding:12px;margin:10px 0}
+
+.party{font-weight:bold}
+.alice{color:#f0883e}
+.bob{color:#58a6ff}
+.mint{color:#3fb950}
+</style>
+</head>
+<body>
+
+<h1>Atomic Sale of NPUB Offset</h1>
+<div class="sub">How to sell the grinding offset without trusting either party</div>
+
+<h2>What is Atomic About an Atomic Swap?</h2>
+<div class="card">
+<div style="font-size:13px;line-height:1.8">
+Atomic = <b>both sides happen or neither does</b>. No one can cheat.<br><br>
+
+The trick: use a <b style="color:#d2a8ff">hash lock</b>.<br><br>
+
+<span class="party alice">Alice</span> has a secret (the offset d). She hashes it: <code>h = SHA256(d)</code>.<br>
+<span class="party bob">Bob</span> locks payment: "whoever reveals a value x where SHA256(x) = h gets the money."<br><br>
+
+To claim the money, <span class="party alice">Alice</span> MUST publish d. The hash guarantees she can't fake it.<br>
+Once d is public, <span class="party bob">Bob</span> reads it. Both sides complete simultaneously.<br><br>
+
+If Alice walks away: Bob gets a refund after a timeout. Nobody loses.
+</div>
+</div>
+
+<h2>The Core Trick Applied to NPUB Offsets</h2>
+<div class="card">
+<div style="font-size:13px;line-height:1.8">
+The offset d is a small integer (~5 bytes). Perfect preimage for an HTLC.<br><br>
+
+<span class="party alice">Seller</span> has found d such that <code>(user_pub + d*G)</code> = desired vanity NPUB<br>
+<span class="party bob">Buyer</span> wants d to compute <code>new_nsec = (old_nsec + d) mod n</code><br><br>
+
+<b style="color:#3fb950">d is the perfect atomic swap asset:</b><br>
+✓ Small (fits in any hash preimage)<br>
+✓ Verifiable (buyer can check resulting NPUB before paying)<br>
+✓ Useless to anyone except the buyer (need original nsec)<br>
+✓ Hash-lockable (standard SHA256 works)
+</div>
+</div>
+
+<h2>Option 1: Bitcoin On-Chain HTLC</h2>
+<div class="card good">
+<div style="font-size:12px">
+<span class="tag yes">TRUE ATOMIC</span>
+<span class="tag no">EXPENSIVE</span>
+</div>
+
+<div class="flow">
+<div class="step"><div class="step-num">1</div><div class="step-text"><span class="party alice">Seller</span> finds offset d, computes target NPUB, sends <span class="party bob">Buyer</span>: target_npub + h = SHA256(d)</div></div>
+<div class="step"><div class="step-num">2</div><div class="step-text"><span class="party bob">Buyer</span> verifies: target_npub contains "meshmate"? Has high z-score? <b>(can verify WITHOUT knowing d)</b></div></div>
+<div class="step"><div class="step-num">3</div><div class="step-text"><span class="party bob">Buyer</span> creates Bitcoin script: "pay seller IF they reveal preimage of h, OR refund buyer after 48h"</div></div>
+<div class="step"><div class="step-num">4</div><div class="step-text"><span class="party alice">Seller</span> claims BTC by broadcasting d on-chain. <b>d is now public in the witness data.</b></div></div>
+<div class="step"><div class="step-num">5</div><div class="step-text"><span class="party bob">Buyer</span> reads d from blockchain → computes new_nsec → verifies match. Done.</div></div>
+</div>
+
+<div style="font-size:11px;color:#8b949e;margin-top:8px">
+<b>Pros:</b> Battle-tested. No trust needed. Works with any Bitcoin wallet.<br>
+<b>Cons:</b> On-chain fee $1-10. May exceed the value of the vanity service itself.<br>
+<b>Speed:</b> ~10 minutes for Alice's claim to confirm.
+</div>
+</div>
+
+<h2>Option 2: Lightning HTLC</h2>
+<div class="card good">
+<div style="font-size:12px">
+<span class="tag yes">TRUE ATOMIC</span>
+<span class="tag maybe">NEEDS CHANNELS</span>
+</div>
+
+<div class="flow">
+<div class="step"><div class="step-num">1</div><div class="step-text">Same setup: seller sends target_npub + h</div></div>
+<div class="step"><div class="step-num">2</div><div class="step-text"><span class="party bob">Buyer</span> sends Lightning payment with payment_hash = h</div></div>
+<div class="step"><div class="step-num">3</div><div class="step-text"><span class="party alice">Seller</span> claims payment by providing preimage d</div></div>
+<div class="step"><div class="step-num">4</div><div class="step-text"><span class="party bob">Buyer</span> reads d from Lightning invoice settlement</div></div>
+</div>
+
+<div style="font-size:11px;color:#8b949e;margin-top:8px">
+<b>Pros:</b> Near-zero fees ($0.001). Instant settlement.<br>
+<b>Cons:</b> Both need Lightning channels + inbound liquidity. Must be online.<br>
+<b>Speed:</b> Seconds.
+</div>
+</div>
+
+<h2>Option 3: Cashu + NUT-11 HTLC (BEST for our use case)</h2>
+<div class="card best">
+<div style="font-size:12px">
+<span class="tag yes">TRUE ATOMIC</span>
+<span class="tag yes">MICROPAYMENT</span>
+<span class="tag yes">PRIVATE</span>
+<span class="tag yes">NOSTR-NATIVE</span>
+</div>
+
+<div style="font-size:13px;color:#3fb950;font-weight:bold;margin:8px 0">Cashu NUT-11 defines spending conditions including HTLC locks for ecash tokens.</div>
+
+<div class="flow">
+<div class="step"><div class="step-num">1</div><div class="step-text"><span class="party alice">Seller</span> finds offset d, sends <span class="party bob">Buyer</span>: target_npub + h = SHA256(d)</div></div>
+<div class="step"><div class="step-num">2</div><div class="step-text"><span class="party bob">Buyer</span> verifies target NPUB. Then mints a Cashu token locked with NUT-11 HTLC condition: hashlock = h</div></div>
+<div class="step"><div class="step-num">3</div><div class="step-text"><span class="party alice">Seller</span> claims ecash from <span class="mint mint">Mint</span> by providing preimage d. <span class="mint mint">Mint</span> verifies H(d) = h.</div></div>
+<div class="step"><div class="step-num">4</div><div class="step-text"><b>d is now known to the mint (and visible in the claim).</b> <span class="party bob">Buyer</span> reads d → computes new_nsec.</div></div>
+</div>
+
+<div style="font-size:11px;color:#8b949e;margin-top:8px">
+<b>Pros:</b> Zero fees. Instant. Private (ecash). Fits the Nostr ecosystem. Micropayment-friendly.<br>
+<b>Cons:</b> Requires mint to implement NUT-11 HTLC (not all mints do yet). Mint learns d (but d is useless without the buyer's nsec).<br>
+<b>Speed:</b> Instant.
+</div>
+</div>
+
+<h2>Option 4: Simple Cashu (No HTLC) — Good Enough for V1</h2>
+<div class="card ok">
+<div style="font-size:12px">
+<span class="tag no">NOT ATOMIC</span>
+<span class="tag maybe">REPUTATION-BASED</span>
+</div>
+
+<div class="flow">
+<div class="step"><div class="step-num">1</div><div class="step-text"><span class="party alice">Seller</span> shows target_npub (proves it exists without revealing d)</div></div>
+<div class="step"><div class="step-num">2</div><div class="step-text"><span class="party bob">Buyer</span> sends Cashu token</div></div>
+<div class="step"><div class="step-num">3</div><div class="step-text"><span class="party alice">Seller</span> sends offset d</div></div>
+<div class="step"><div class="step-num">4</div><div class="step-text"><span class="party bob">Buyer</span> verifies: new_nsec produces target_npub? ✓</div></div>
+</div>
+
+<div style="font-size:11px;color:#8b949e;margin-top:8px">
+<b>Pros:</b> Dead simple. Works TODAY with any Cashu mint. No special features needed.<br>
+<b>Cons:</b> Seller could take the money and not send d. Buyer trusts seller's reputation.<br>
+<b>Mitigation:</b> Seller stakes reputation. For small amounts (few hundred sats), risk is minimal.<br>
+<b>For demo:</b> This is fine. Upgrade to NUT-11 later.
+</div>
+</div>
+
+<h2>Option 5: Adaptor Signatures — Why It Doesn't Work Here</h2>
+<div class="card bad">
+<div style="font-size:12px">
+<span class="tag no">DOESN'T WORK</span>
+</div>
+<div style="font-size:13px;line-height:1.8;margin-top:8px">
+Adaptor signatures reveal a <b>point</b> (d*G), not the <b>scalar</b> (d).<br><br>
+
+Bob could learn d*G → compute new npub → verify identity.<br>
+But Bob <b style="color:#f85149">CANNOT</b> compute new_nsec from d*G alone (discrete log problem).<br><br>
+
+So adaptor sigs give Bob the ability to verify but not to use the key.<br>
+Would need a second channel to transmit the actual scalar. Not truly one-shot.
+</div>
+</div>
+
+<h2>Recommended Path</h2>
+<div class="card best">
+<div style="font-size:13px;line-height:2">
+
+<b style="color:#f39c12">V1 Demo:</b> Simple Cashu (pay → receive offset → verify). Fast to build, easy to demo.<br><br>
+
+<b style="color:#58a6ff">V2 Production:</b> Cashu NUT-11 HTLC. True atomic. The seller can't run off with the money.<br><br>
+
+<b style="color:#3fb950">V3 Optional:</b> Add Lightning fallback for non-Cashu users.<br><br>
+
+<b>On-chain Bitcoin is overkill</b> for amounts measured in hundreds of sats. The fee would exceed the service price. But the mechanism is identical — just change the payment rail.
+</div>
+</div>
+
+</body>
+</html>
