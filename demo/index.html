@@ -177,15 +177,24 @@
     margin: 8px 0;
   }
   .fingerprint-grid .cell {
-    width: 28px;
-    height: 28px;
-    border-radius: 4px;
+    width: 40px;
+    height: 40px;
+    border-radius: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 13px;
+    font-size: 16px;
     font-weight: bold;
     color: rgba(0,0,0,0.7);
+    animation: cellAppear 0.4s ease-out both;
+  }
+  .fingerprint-grid .cell:hover {
+    transform: scale(1.15);
+    z-index: 5;
+  }
+  @keyframes cellAppear {
+    from { opacity: 0; transform: scale(0.3) rotate(-30deg); }
+    to   { opacity: 1; transform: scale(1) rotate(0); }
   }
   .identity-card {
     display: flex;
@@ -258,6 +267,116 @@
     transition: width 0.1s;
     width: 0%;
   }
+
+  /* ── Radial fingerprint view ── */
+  .fingerprint-radial {
+    position: relative;
+    width: 220px;
+    height: 220px;
+    margin: 12px auto;
+    background: radial-gradient(circle at center, rgba(88,166,255,0.06) 0%, transparent 70%);
+    border-radius: 50%;
+  }
+  .fingerprint-radial .radial-sector {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform-origin: 0 0;
+  }
+  .fingerprint-radial .radial-char {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: bold;
+    margin-left: -17px;
+    margin-top: -17px;
+    animation: cellAppear 0.4s ease-out both;
+    transition: transform 0.15s;
+  }
+  .fingerprint-radial .radial-char:hover { transform: scale(1.3); z-index: 10; }
+  .fingerprint-radial .radial-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    font-size: 11px;
+    color: var(--header);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    width: 70px;
+    height: 70px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    line-height: 1.3;
+  }
+  .fingerprint-radial .radial-center .big {
+    font-size: 18px;
+    font-weight: bold;
+    color: var(--orange);
+  }
+
+  /* ── Entropy gradient bar ── */
+  .entropy-gradient {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    margin: 12px 0;
+  }
+  .entropy-gradient .gradient-row {
+    display: flex;
+    gap: 1px;
+    height: 28px;
+    align-items: stretch;
+  }
+  .entropy-gradient .gradient-cell {
+    flex: 1;
+    min-width: 3px;
+    border-radius: 2px;
+    position: relative;
+    animation: cellAppear 0.3s ease-out both;
+  }
+  .entropy-gradient .gradient-cell.outlier {
+    box-shadow: 0 0 8px var(--orange), 0 0 3px var(--orange) inset;
+    border: 1px solid var(--orange);
+    z-index: 2;
+  }
+  .entropy-gradient .gradient-cell.outlier::after {
+    content: '▼';
+    position: absolute;
+    top: -16px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px;
+    color: var(--orange);
+  }
+  .entropy-gradient .gradient-scale {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--body);
+    margin-top: 6px;
+  }
+
+  /* ── Radial comparison wrapper ── */
+  .radial-pair {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .radial-pair > div { text-align: center; }
 </style>
 </head>
 <body>
@@ -565,13 +684,77 @@ function renderFingerprintGrid(chars, W) {
     let b = parseInt(color.substring(5,7),16);
     let lum = 0.299*r + 0.587*g + 0.114*b;
     let textColor = lum > 140 ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.9)';
-    html += '<div class="cell" style="background:' + color + ';color:' + textColor + ';">' + c + '</div>';
+    let delay = (i * 0.04).toFixed(2);
+    html += '<div class="cell" style="background:' + color + ';color:' + textColor + ';box-shadow:0 0 8px ' + color + '55,0 0 3px ' + color + '99;animation-delay:' + delay + 's;">' + c + '</div>';
   }
   // pad to fill grid
   let total = dim * dim;
   for (let i = chars.length; i < total; i++) {
-    html += '<div class="cell" style="background:var(--border);opacity:0.3;"></div>';
+    let delay = (i * 0.04).toFixed(2);
+    html += '<div class="cell" style="background:var(--border);opacity:0.3;animation-delay:' + delay + 's;"></div>';
   }
+  html += '</div>';
+  return html;
+}
+
+// ─── Radial Fingerprint View ────────────────────────────────────────────────
+// Arranges characters in a circle.  Each char sits at angle = 360/W * i,
+// radius ~80 px from center, with a colored circular badge behind it.
+// Center shows "W=<W>, z=<zScore>".
+function renderFingerprintRadial(chars, W, zScore) {
+  let n = chars.length;
+  let radius = 80;
+  let container = 220; // matches .fingerprint-radial CSS
+  let cx = container / 2; // 110
+  let cy = container / 2; // 110
+
+  let html = '<div class="fingerprint-radial">';
+  for (let i = 0; i < n; i++) {
+    let c = chars[i];
+    let color = colorForChar(c);
+    let angle = (360 / W) * i; // degrees, 0 = top
+    let rad = (angle - 90) * Math.PI / 180; // -90 so 0deg points up
+    let x = cx + radius * Math.cos(rad);
+    let y = cy + radius * Math.sin(rad);
+
+    // text color by luminance
+    let r = parseInt(color.substring(1,3),16);
+    let g = parseInt(color.substring(3,5),16);
+    let b = parseInt(color.substring(5,7),16);
+    let lum = 0.299*r + 0.587*g + 0.114*b;
+    let textColor = lum > 140 ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.95)';
+    let delay = (i * 0.04).toFixed(2);
+
+    html += '<div class="radial-char" style="left:' + x.toFixed(1) + 'px;top:' + y.toFixed(1) +
+      'px;background:' + color + ';color:' + textColor +
+      ';box-shadow:0 0 10px ' + color + 'aa,0 0 4px ' + color +
+      ';animation-delay:' + delay + 's;" title="' + c + '">' + c + '</div>';
+  }
+  // center label
+  let z = (zScore !== undefined && zScore !== null) ? zScore.toFixed(2) : '—';
+  html += '<div class="radial-center"><span>W=<span class="big">' + W + '</span></span><span>z=' + z + '</span></div>';
+  html += '</div>';
+  return html;
+}
+
+// ─── Entropy Gradient Bar ────────────────────────────────────────────────────
+// Draws a horizontal bar of the full NPUB data part, each cell colored by its
+// character.  The outlier window [bestPos, bestPos+bestW) is highlighted with
+// an orange glow + downward arrow.
+function renderEntropyGradient(dataPart, bestPos, bestW) {
+  let html = '<div class="entropy-gradient">';
+  html += '<div class="card-label" style="margin-bottom:8px;">Entropy gradient across full NPUB (outlier highlighted):</div>';
+  html += '<div class="gradient-row">';
+  for (let i = 0; i < dataPart.length; i++) {
+    let c = dataPart[i];
+    let color = colorForChar(c);
+    let isOutlier = (i >= bestPos && i < bestPos + bestW);
+    let cls = isOutlier ? 'gradient-cell outlier' : 'gradient-cell';
+    let delay = (i * 0.008).toFixed(3);
+    html += '<div class="' + cls + '" style="background:' + color + ';animation-delay:' + delay + 's;" title="pos ' + i + ': ' + c + '"></div>';
+  }
+  html += '</div>';
+  html += '<div class="gradient-scale"><span>npub1…</span><span>pos ' + bestPos + '–' + (bestPos + bestW - 1) + ' (outlier)</span><span>…end</span></div>';
   html += '</div>';
   return html;
 }
@@ -805,8 +988,17 @@ function runSection3() {
   html += '</div>';
   html += '<div class="card-label">NPUB with winning section highlighted:</div>';
   html += '<div class="npub-display">' + highlightedNpub + '</div>';
-  html += '<div class="card-label">2D Fingerprint Card (' + dim + '×' + dim + ' grid):</div>';
-  html += renderFingerprintGrid(winnerChars, result.bestW);
+
+  // Entropy gradient across the full NPUB
+  html += renderEntropyGradient(dataPart, result.bestPos, result.bestW);
+
+  // Radial + grid views side by side
+  html += '<div class="card-label">Radial Fingerprint (W=' + result.bestW + ', z=' + result.bestZ.toFixed(2) + '):</div>';
+  html += '<div class="radial-pair">';
+  html += '<div>' + renderFingerprintRadial(winnerChars, result.bestW, result.bestZ) + '</div>';
+  html += '<div><div class="card-label" style="margin-bottom:4px;">Grid view (' + dim + '×' + dim + '):</div>' + renderFingerprintGrid(winnerChars, result.bestW) + '</div>';
+  html += '</div>';
+
   document.getElementById('s3-result').innerHTML = html;
 }
 
@@ -842,11 +1034,8 @@ window.generateAttacker = function() {
       let aliceChars = state.aliceNpub.substring(5).substring(state.aliceScan.bestPos, state.aliceScan.bestPos + state.aliceScan.bestW);
       let attackerChars = dataPart.substring(scan.bestPos, scan.bestPos + scan.bestW);
 
-      let aliceDim = Math.ceil(Math.sqrt(state.aliceScan.bestW));
-      let attackerDim = Math.ceil(Math.sqrt(scan.bestW));
-
       let html = '<div class="comparison-row">';
-      // Alice
+      // Alice — radial view
       html += '<div>';
       html += '<div class="card-label"><span class="badge alice">ALICE (legitimate)</span></div>';
       html += '<div class="scanner-info" style="margin-bottom:8px;">';
@@ -854,9 +1043,9 @@ window.generateAttacker = function() {
       html += '<div style="font-size:11px;word-break:break-all;color:var(--green);">' + state.aliceNpub.substring(0,30) + '…</div>';
       html += '<div><span class="label">W=' + state.aliceScan.bestW + ', z=' + state.aliceScan.bestZ.toFixed(2) + '</span></div>';
       html += '</div>';
-      html += renderFingerprintGrid(aliceChars, state.aliceScan.bestW);
+      html += renderFingerprintRadial(aliceChars, state.aliceScan.bestW, state.aliceScan.bestZ);
       html += '</div>';
-      // Attacker
+      // Attacker — radial view
       html += '<div>';
       html += '<div class="card-label"><span class="badge attacker">ATTACKER (impostor)</span></div>';
       html += '<div class="scanner-info" style="margin-bottom:8px;">';
@@ -864,10 +1053,10 @@ window.generateAttacker = function() {
       html += '<div style="font-size:11px;word-break:break-all;color:var(--red);">' + attackerNpub.substring(0,30) + '…</div>';
       html += '<div><span class="label">W=' + scan.bestW + ', z=' + scan.bestZ.toFixed(2) + '</span></div>';
       html += '</div>';
-      html += renderFingerprintGrid(attackerChars, scan.bestW);
+      html += renderFingerprintRadial(attackerChars, scan.bestW, scan.bestZ);
       html += '</div>';
       html += '</div>';
-      html += '<div class="note">The cards have different grid shapes, different colors, different characters. An attacker cannot reproduce Alice\'s exact fingerprint without astronomical cost.</div>';
+      html += '<div class="note">Compare the two circles: different radius patterns, different colors, different characters. An attacker cannot reproduce Alice\'s exact fingerprint without astronomical cost.</div>';
       document.getElementById('s4-result').innerHTML = html;
       btn.textContent = 'Generate New Attacker';
       btn.disabled = false;
