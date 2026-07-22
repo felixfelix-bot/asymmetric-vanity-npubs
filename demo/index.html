@@ -604,19 +604,9 @@
     <span class="section-number">2 / 6</span>
     <h2>The Problem: No Asymmetry</h2>
     <p>Here are two keypairs, both with "<span style="color:var(--green)">sat</span>" in their NPUB. Anyone can make these. There's no way to tell them apart.</p>
-    <div class="slider-container">
-      <label class="slider-label">Minimum fingerprint size: <span id="minW-label">16</span> chars (<span id="minW-grid">4×4</span> grid)</label>
-      <input type="range" id="minW-slider" min="16" max="49" step="9" value="16" class="slider" onchange="updateMinWLabel()">
-      <div class="slider-marks">
-        <span>4×4</span><span>5×5</span><span>6×6</span><span>7×7</span>
-      </div>
-      <div class="note" style="font-size:11px;">Larger = harder to forge = more asymmetric. Smaller windows are too easy for an attacker to replicate.</div>
-    </div>
-    <button id="btn2" onclick="generateSection2()">Generate Two Vanity Keys</button>
-    <div id="s2-result"></div>
-
+    
     <h3 style="color:var(--header);font-size:18px;margin-top:24px;margin-bottom:8px;">Understanding the Metrics</h3>
-    <p>The scanner uses two metrics to find the best fingerprint pattern. Here's what they mean and why we combine them.</p>
+    <p>While we mine, here's how the scanner will evaluate each candidate. Two metrics, combined into one quality score.</p>
 
     <div class="metric-card">
       <h3>Z-Score: How Rare Is This Pattern?</h3>
@@ -680,6 +670,18 @@
       </div>
       <p>The scanner optimizes for the highest quality score. This naturally selects patterns that are <strong>both rare (high z) and human-recognizable (few unique chars)</strong>.</p>
     </div>
+
+    <h3 style="color:var(--header);font-size:18px;margin-top:24px;margin-bottom:8px;">Now Let's Mine</h3>
+    <div class="slider-container">
+      <label class="slider-label">Minimum fingerprint size: <span id="minW-label">16</span> chars (<span id="minW-grid">4×4</span> grid)</label>
+      <input type="range" id="minW-slider" min="16" max="49" step="9" value="16" class="slider" onchange="updateMinWLabel()">
+      <div class="slider-marks">
+        <span>4×4</span><span>5×5</span><span>6×6</span><span>7×7</span>
+      </div>
+      <div class="note" style="font-size:11px;">Larger = harder to forge = more asymmetric. Smaller windows are too easy for an attacker to replicate.</div>
+    </div>
+    <button id="btn2" onclick="generateSection2()">Generate Two Vanity Keys</button>
+    <div id="s2-result"></div>
 
     <div class="insight">
       <strong>Key insight:</strong> Both have 'sat' in their NPUB. Both cost the same. Which is Alice's? You cannot tell. This is why vanity alone doesn't prevent phishing.
