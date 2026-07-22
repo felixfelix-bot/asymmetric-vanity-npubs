@@ -283,6 +283,54 @@
     margin-bottom: 8px;
   }
 
+  /* Vertical progress bar */
+  .metrics-with-bar {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  .metrics-content {
+    flex: 1;
+    min-width: 0;
+  }
+  .vertical-progress {
+    position: sticky;
+    top: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    min-width: 48px;
+  }
+  .vprogress-track {
+    width: 8px;
+    height: 300px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+  }
+  .vprogress-fill {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 0%;
+    background: linear-gradient(to top, var(--green), var(--orange));
+    border-radius: 4px;
+    transition: height 0.3s ease;
+  }
+  .vprogress-label {
+    font-size: 20px;
+  }
+  .vprogress-time {
+    font-size: 12px;
+    color: var(--orange);
+    font-weight: bold;
+    font-variant-numeric: tabular-nums;
+  }
+
   /* Slider */
   .slider-container {
     background: var(--bg);
@@ -608,6 +656,9 @@
     <h3 style="color:var(--header);font-size:18px;margin-top:24px;margin-bottom:8px;">Understanding the Metrics</h3>
     <p>While we mine, here's how the scanner will evaluate each candidate. Two metrics, combined into one quality score.</p>
 
+    <div class="metrics-with-bar">
+    <div class="metrics-content">
+
     <div class="metric-card">
       <h3>Z-Score: How Rare Is This Pattern?</h3>
       <p>The z-score measures how unusual a window is compared to random expectation.</p>
@@ -669,6 +720,16 @@
         </div>
       </div>
       <p>The scanner optimizes for the highest quality score. This naturally selects patterns that are <strong>both rare (high z) and human-recognizable (few unique chars)</strong>.</p>
+    </div>
+
+    </div>
+    <div class="vertical-progress" id="vprogress">
+      <div class="vprogress-track">
+        <div class="vprogress-fill" id="vprogress-fill"></div>
+      </div>
+      <div class="vprogress-label" id="vprogress-label">⏳</div>
+      <div class="vprogress-time" id="vprogress-time">60s</div>
+    </div>
     </div>
 
     <h3 style="color:var(--header);font-size:18px;margin-top:24px;margin-bottom:8px;">Mining in Progress</h3>
@@ -1252,6 +1313,17 @@ window.generateSection2 = function() {
     let pct = Math.min(95, (elapsed / TIMEBOX_MS) * 100);
     let secs = Math.ceil(remaining / 1000);
 
+    // Update vertical progress bar
+    let vfill = document.getElementById('vprogress-fill');
+    let vtime = document.getElementById('vprogress-time');
+    let vlabel = document.getElementById('vprogress-label');
+    if (vfill) {
+      vfill.style.height = Math.min(100, (elapsed / TIMEBOX_MS) * 100) + '%';
+      vtime.textContent = secs + 's';
+      if (bestZ > 0) vlabel.textContent = '⛏';
+      else vlabel.textContent = '⏳';
+    }
+
     let html = '<div class="grind-display">';
     html += '<div class="grind-timer">' + secs + 's remaining</div>';
     html += '<div class="grind-stats">';
@@ -1305,6 +1377,11 @@ window.generateSection2 = function() {
     btn.style.display = '';
     // Scroll to results
     document.getElementById('s2-result').scrollIntoView({behavior:'smooth', block:'center'});
+    // Update vertical bar to done state
+    let vfill = document.getElementById('vprogress-fill');
+    let vtime = document.getElementById('vprogress-time');
+    let vlabel = document.getElementById('vprogress-label');
+    if (vfill) { vfill.style.height = '100%'; vtime.textContent = 'done'; vlabel.textContent = '✓'; }
   }
 
   setTimeout(grindLoop, 50);
