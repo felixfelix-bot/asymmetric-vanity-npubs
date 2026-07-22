@@ -917,38 +917,68 @@ window.generateSection2 = function() {
   btn.disabled = true;
 
   let word = 'sat';
-  // Find two NPUBs containing "sat"
+  // Find multiple "sat" NPUBs and pick the one with the most dramatic low-entropy window
   setTimeout(function() {
-    let results = [];
+    let candidates = [];
     let count = 0;
-    function findOne() {
+    let TARGET = 50; // collect 50 candidates, scan each, pick best entropy outlier
+    let MIN_Z = 2.5; // minimum z-score threshold for a dramatic outlier
+
+    function findBatch() {
       for (let i = 0; i < 2000; i++) {
         count++;
         let privKey = utils.randomPrivateKey();
         let npub = getNpubForPrivKey(privKey);
         if (checkVanity(npub, word)) {
-          results.push(npub);
-          if (results.length >= 2) {
-            finishSection2(results[0], results[1], word, count);
-            return;
-          }
-          // Found 1 of 2, keep searching
-          document.getElementById('s2-result').innerHTML = '<div class="status-msg loading">Found 1 of 2 keys with "' + word + '"… continuing…</div>';
-          setTimeout(findOne, 10);
-          return;
+          candidates.push(npub);
         }
       }
-      // not found in this batch, continue
-      if (results.length < 2) {
-        document.getElementById('s2-result').innerHTML = '<div class="status-msg loading">Searching for "' + word + '"… ' + count + ' keys tried</div>';
-        setTimeout(findOne, 10);
+      if (candidates.length < TARGET) {
+        document.getElementById('s2-result').innerHTML =
+          '<div class="status-msg loading">Mining "sat" keys… ' + candidates.length + '/' + TARGET +
+          ' found (' + count.toLocaleString() + ' keys tried)</div>';
+        setTimeout(findBatch, 10);
+      } else {
+        // Scan each candidate for entropy outlier, pick the most dramatic
+        document.getElementById('s2-result').innerHTML =
+          '<div class="status-msg loading">Scanning ' + candidates.length + ' candidates for lowest-entropy outlier…</div>';
+        setTimeout(pickBest, 50);
       }
     }
-    function finishSection2(npub1, npub2, word, totalTried) {
+
+    function pickBest() {
+      let best = null;
+      let second = null;
+      for (let npub of candidates) {
+        let dp = npub.substring(5);
+        let scan = runEntropyScanner(dp);
+        if (!best || scan.bestZ > best.scan.bestZ) {
+          second = best;
+          best = { npub, scan };
+        } else if (!second || scan.bestZ > second.scan.bestZ) {
+          second = { npub, scan };
+        }
+      }
+      // If best z-score is below threshold, keep mining more candidates
+      if (best.scan.bestZ < MIN_Z && count < 500000) {
+        document.getElementById('s2-result').innerHTML =
+          '<div class="status-msg loading">Best z=' + best.scan.bestZ.toFixed(2) +
+          ' (need ' + MIN_Z + ')… mining more (' + candidates.length + ' candidates, ' +
+          count.toLocaleString() + ' keys tried)</div>';
+        TARGET += 30; // raise bar for next batch
+        setTimeout(findBatch, 10);
+        return;
+      }
+      // Use the best as Alice (dramatic entropy outlier), second for the comparison key
+      finishSection2(best.npub, second.npub, word, count, best.scan.bestZ);
+    }
+
+    function finishSection2(npub1, npub2, word, totalTried, bestZ) {
       state.sec2keys = { npub1, npub2, word };
       state.aliceNpub = npub1;
       state.aliceWord = word;
-      let html = '<div class="status-msg found">✓ Found 2 keys with "' + word + '" in ' + totalTried.toLocaleString() + ' total attempts</div>';
+      let html = '<div class="status-msg found">✓ Found 2 keys with "' + word + '" in ' + totalTried.toLocaleString() + ' total attempts';
+      html += ' (best entropy outlier z=' + bestZ.toFixed(2) + ')</div>';
       html += '<div class="side-by-side">';
       html += '<div><div class="card-label">Key A</div><div class="npub-display">npub1' + highlightNpub(npub1, word, 'vanity') + '</div></div>';
       html += '<div><div class="card-label">Key B</div><div class="npub-display">npub1' + highlightNpub(npub2, word, 'vanity') + '</div></div>';
@@ -958,7 +988,7 @@ window.generateSection2 = function() {
       btn.textContent = 'Regenerate';
       btn.disabled = false;
     }
-    findOne();
+    findBatch();
   }, 50);
 };
 
