@@ -275,6 +275,14 @@
     color: var(--green);
   }
 
+  .grind-timer {
+    font-size: 28px;
+    font-weight: bold;
+    color: var(--orange);
+    text-align: center;
+    margin-bottom: 8px;
+  }
+
   /* Slider */
   .slider-container {
     background: var(--bg);
@@ -1029,105 +1037,100 @@ window.updateMinWLabel = function() {
 
 window.generateSection2 = function() {
   let btn = document.getElementById('btn2');
-  btn.textContent = 'Generating…';
+  btn.textContent = 'Mining…';
   btn.disabled = true;
 
   let word = 'sat';
   let minW = parseInt(document.getElementById('minW-slider').value) || 16;
-  // Find multiple "sat" NPUBs and pick the one with the most dramatic low-entropy window
-  setTimeout(function() {
-    let candidates = [];
-    let count = 0;
-    let TARGET = 50; // collect 50 candidates, scan each, pick best entropy outlier
-    let MIN_Z = 2.5; // minimum z-score threshold for a dramatic outlier
+  let TIMEBOX_MS = 60000; // 60 seconds
+  let startTime = Date.now();
 
-    function findBatch() {
-      for (let i = 0; i < 2000; i++) {
-        count++;
-        let privKey = utils.randomPrivateKey();
-        let npub = getNpubForPrivKey(privKey);
-        if (checkVanity(npub, word)) {
-          candidates.push(npub);
-        }
-      }
-      if (candidates.length < TARGET) {
-        let pct = Math.min(95, (candidates.length / TARGET) * 100);
-        document.getElementById('s2-result').innerHTML =
-          '<div class="grind-display">' +
-          '<div class="grind-stats">' +
-          '<div class="grind-stat"><span class="grind-num">' + count.toLocaleString() + '</span><span class="grind-lbl">keys generated</span></div>' +
-          '<div class="grind-stat"><span class="grind-num">' + candidates.length + '</span><span class="grind-lbl">"sat" matches found</span></div>' +
-          '<div class="grind-stat"><span class="grind-num">~' + Math.round(count / Math.max(candidates.length,1)) + '</span><span class="grind-lbl">keys per match</span></div>' +
-          '</div>' +
-          '<div class="progress-bar"><div class="fill" style="width:' + pct + '%"></div></div>' +
-          '<div class="grind-explain">Grinding many keys to find one with a <strong>dramatic low-entropy pattern</strong> — not just any "sat" match. ' +
-          'Most random keys look uniform. We need an outlier where characters repeat visibly.</div>' +
-          '</div>';
-        setTimeout(findBatch, 10);
-      } else {
-        // Scan each candidate for entropy outlier, pick the most dramatic
-        document.getElementById('s2-result').innerHTML =
-          '<div class="grind-display">' +
-          '<div class="status-msg loading">Scanning ' + candidates.length + ' candidates for the most recognizable entropy pattern…</div>' +
-          '</div>';
-        setTimeout(pickBest, 50);
-      }
-    }
+  let count = 0;
+  let satCount = 0;
+  let best = null;   // best entropy outlier NPUB
+  let second = null;  // second best for comparison
+  let secondNpub = null; // any other sat NPUB for Key B
+  let bestZ = 0;
 
-    function pickBest() {
-      let best = null;
-      let second = null;
-      for (let npub of candidates) {
+  function grindLoop() {
+    let elapsed = Date.now() - startTime;
+    let remaining = Math.max(0, TIMEBOX_MS - elapsed);
+
+    // Grind a batch
+    for (let i = 0; i < 1500; i++) {
+      count++;
+      let privKey = utils.randomPrivateKey();
+      let npub = getNpubForPrivKey(privKey);
+      if (checkVanity(npub, word)) {
+        satCount++;
+        // Immediately scan this candidate for entropy
         let dp = npub.substring(5);
         let scan = runEntropyScanner(dp, minW);
         if (!best || scan.bestZ > best.scan.bestZ) {
-          second = best;
+          // Old best becomes second
+          if (best) second = best;
           best = { npub, scan };
+          bestZ = scan.bestZ;
         } else if (!second || scan.bestZ > second.scan.bestZ) {
           second = { npub, scan };
         }
+        // Keep a fallback Key B (first sat NPUB that isn't the best)
+        if (!secondNpub && npub !== (best ? best.npub : null)) {
+          secondNpub = npub;
+        }
       }
-      // If best z-score is below threshold, keep mining more candidates
-      if (best.scan.bestZ < MIN_Z && count < 500000) {
-        document.getElementById('s2-result').innerHTML =
-          '<div class="grind-display">' +
-          '<div class="grind-stats">' +
-          '<div class="grind-stat"><span class="grind-num">' + count.toLocaleString() + '</span><span class="grind-lbl">keys generated</span></div>' +
-          '<div class="grind-stat"><span class="grind-num">' + candidates.length + '</span><span class="grind-lbl">"sat" matches</span></div>' +
-          '<div class="grind-stat"><span class="grind-num">z=' + best.scan.bestZ.toFixed(1) + '</span><span class="grind-lbl">best so far (need ' + MIN_Z + ')</span></div>' +
-          '</div>' +
-          '<div class="progress-bar"><div class="fill" style="width:' + Math.min(90, best.scan.bestZ / MIN_Z * 90) + '%"></div></div>' +
-          '<div class="grind-explain">Best outlier so far (z=' + best.scan.bestZ.toFixed(2) + ') is not dramatic enough yet. Need repeating characters that are <strong>visually recognizable</strong>. Continuing to grind…</div>' +
-          '</div>';
-        TARGET += 30; // raise bar for next batch
-        setTimeout(findBatch, 10);
-        return;
-      }
-      // Use the best as Alice (dramatic entropy outlier), second for the comparison key
-      finishSection2(best.npub, second.npub, word, count, best.scan.bestZ, candidates.length);
     }
 
-    function finishSection2(npub1, npub2, word, totalTried, bestZ, totalCands) {
-      state.sec2keys = { npub1, npub2, word };
-      state.aliceNpub = npub1;
-      state.aliceWord = word;
-      let html = '<div class="status-msg found">✓ Ground ' + totalTried.toLocaleString() + ' keys, scanned ' + totalCands + ' "sat" matches, found a dramatic outlier (z=' + bestZ.toFixed(2) + ')</div>';
-      html += '<div class="grind-summary">' +
-        '<div class="grind-stat-inline">' + totalTried.toLocaleString() + ' total keys generated</div>' +
-        '<div class="grind-stat-inline">' + totalCands + ' contained "sat"</div>' +
-        '<div class="grind-stat-inline">1 had a dramatically recognizable pattern</div>' +
-        '</div>';
-      html += '<div class="side-by-side">';
-      html += '<div><div class="card-label">Key A (chosen for recognizability)</div><div class="npub-display">npub1' + highlightNpub(npub1, word, 'vanity') + '</div></div>';
-      html += '<div><div class="card-label">Key B</div><div class="npub-display">npub1' + highlightNpub(npub2, word, 'vanity') + '</div></div>';
-      html += '</div>';
-      html += '<div class="note">Both contain "' + word + '" — but we ground ' + totalTried.toLocaleString() + ' keys to find Key A. Its entropy outlier makes it visually <strong>recognizable</strong>. Click Next to see the pattern the scanner found.</div>';
-      document.getElementById('s2-result').innerHTML = html;
-      btn.textContent = 'Regenerate';
-      btn.disabled = false;
+    let pct = Math.min(95, (elapsed / TIMEBOX_MS) * 100);
+    let secs = Math.ceil(remaining / 1000);
+
+    let html = '<div class="grind-display">';
+    html += '<div class="grind-timer">' + secs + 's remaining</div>';
+    html += '<div class="grind-stats">';
+    html += '<div class="grind-stat"><span class="grind-num">' + count.toLocaleString() + '</span><span class="grind-lbl">keys generated</span></div>';
+    html += '<div class="grind-stat"><span class="grind-num">' + satCount + '</span><span class="grind-lbl">"sat" matches</span></div>';
+    html += '<div class="grind-stat"><span class="grind-num">z=' + (bestZ > 0 ? bestZ.toFixed(1) : '—') + '</span><span class="grind-lbl">best outlier</span></div>';
+    html += '</div>';
+    html += '<div class="progress-bar"><div class="fill" style="width:' + pct + '%"></div></div>';
+    if (bestZ > 0) {
+      html += '<div class="grind-explain">Best outlier so far: z=' + bestZ.toFixed(2) + ' (W=' + best.scan.bestW + '). Still grinding for a more dramatic pattern…</div>';
+    } else {
+      html += '<div class="grind-explain">Grinding keys looking for "sat" matches. Each match is scanned for low-entropy patterns (W≥' + minW + '). The longer we grind, the better the outlier.</div>';
     }
-    findBatch();
-  }, 50);
+    html += '</div>';
+    document.getElementById('s2-result').innerHTML = html;
+
+    if (elapsed < TIMEBOX_MS) {
+      setTimeout(grindLoop, 10);
+    } else {
+      // Time's up — use whatever we have
+      let keyB = second ? second.npub : (secondNpub || best.npub);
+      finishSection2(best.npub, keyB, word, count, bestZ, satCount);
+    }
+  }
+
+  function finishSection2(npub1, npub2, word, totalTried, finalZ, totalSats) {
+    state.sec2keys = { npub1, npub2, word };
+    state.aliceNpub = npub1;
+    state.aliceWord = word;
+    let grid = Math.sqrt(minW);
+    let html = '<div class="status-msg found">✓ Mining complete — ' + totalTried.toLocaleString() + ' keys, ' + totalSats + ' "sat" matches, best outlier z=' + finalZ.toFixed(2) + ' (W=' + best.scan.bestW + ', ' + Math.sqrt(best.scan.bestW) + '×' + Math.sqrt(best.scan.bestW) + ' grid)</div>';
+    html += '<div class="grind-summary">';
+    html += '<div class="grind-stat-inline">' + totalTried.toLocaleString() + ' keys in 60s</div>';
+    html += '<div class="grind-stat-inline">' + totalSats + ' contained "sat"</div>';
+    html += '<div class="grind-stat-inline">1 chosen for best entropy pattern</div>';
+    html += '</div>';
+    html += '<div class="side-by-side">';
+    html += '<div><div class="card-label">Key A (best entropy outlier)</div><div class="npub-display">npub1' + highlightNpub(npub1, word, 'vanity') + '</div></div>';
+    html += '<div><div class="card-label">Key B (comparison)</div><div class="npub-display">npub1' + highlightNpub(npub2, word, 'vanity') + '</div></div>';
+    html += '</div>';
+    html += '<div class="note">Both contain "' + word + '" — but Key A has a ' + Math.sqrt(best.scan.bestW) + '×' + Math.sqrt(best.scan.bestW) + ' window of unusually low entropy. An attacker would need to replicate Alice\'s EXACT pattern, not just find any low-entropy NPUB. Click Next to see the pattern.</div>';
+    document.getElementById('s2-result').innerHTML = html;
+    btn.textContent = 'Regenerate';
+    btn.disabled = false;
+  }
+
+  setTimeout(grindLoop, 50);
 };
 
 // ─── SECTION 3: Low-Entropy Discovery ───────────────────────────────────────
