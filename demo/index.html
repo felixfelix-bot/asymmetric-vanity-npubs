@@ -221,6 +221,60 @@
   }
   .scanner-info .label { color: var(--body); }
   .scanner-info .value { color: var(--orange); font-weight: bold; }
+
+  /* Grind display */
+  .grind-display {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin: 12px 0;
+  }
+  .grind-stats {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+  .grind-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 100px;
+  }
+  .grind-num {
+    font-size: 24px;
+    font-weight: bold;
+    color: var(--blue);
+  }
+  .grind-lbl {
+    font-size: 11px;
+    color: var(--body);
+    text-transform: uppercase;
+    margin-top: 2px;
+    text-align: center;
+  }
+  .grind-explain {
+    font-size: 13px;
+    color: var(--body);
+    margin-top: 8px;
+    line-height: 1.5;
+  }
+  .grind-summary {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 8px 0;
+  }
+  .grind-stat-inline {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 12px;
+    color: var(--green);
+  }
+
   .math-display {
     background: var(--bg);
     border: 1px solid var(--border);
@@ -934,14 +988,25 @@ window.generateSection2 = function() {
         }
       }
       if (candidates.length < TARGET) {
+        let pct = Math.min(95, (candidates.length / TARGET) * 100);
         document.getElementById('s2-result').innerHTML =
-          '<div class="status-msg loading">Mining "sat" keys… ' + candidates.length + '/' + TARGET +
-          ' found (' + count.toLocaleString() + ' keys tried)</div>';
+          '<div class="grind-display">' +
+          '<div class="grind-stats">' +
+          '<div class="grind-stat"><span class="grind-num">' + count.toLocaleString() + '</span><span class="grind-lbl">keys generated</span></div>' +
+          '<div class="grind-stat"><span class="grind-num">' + candidates.length + '</span><span class="grind-lbl">"sat" matches found</span></div>' +
+          '<div class="grind-stat"><span class="grind-num">~' + Math.round(count / Math.max(candidates.length,1)) + '</span><span class="grind-lbl">keys per match</span></div>' +
+          '</div>' +
+          '<div class="progress-bar"><div class="fill" style="width:' + pct + '%"></div></div>' +
+          '<div class="grind-explain">Grinding many keys to find one with a <strong>dramatic low-entropy pattern</strong> — not just any "sat" match. ' +
+          'Most random keys look uniform. We need an outlier where characters repeat visibly.</div>' +
+          '</div>';
         setTimeout(findBatch, 10);
       } else {
         // Scan each candidate for entropy outlier, pick the most dramatic
         document.getElementById('s2-result').innerHTML =
-          '<div class="status-msg loading">Scanning ' + candidates.length + ' candidates for lowest-entropy outlier…</div>';
+          '<div class="grind-display">' +
+          '<div class="status-msg loading">Scanning ' + candidates.length + ' candidates for the most recognizable entropy pattern…</div>' +
+          '</div>';
         setTimeout(pickBest, 50);
       }
     }
@@ -962,28 +1027,38 @@ window.generateSection2 = function() {
       // If best z-score is below threshold, keep mining more candidates
       if (best.scan.bestZ < MIN_Z && count < 500000) {
         document.getElementById('s2-result').innerHTML =
-          '<div class="status-msg loading">Best z=' + best.scan.bestZ.toFixed(2) +
-          ' (need ' + MIN_Z + ')… mining more (' + candidates.length + ' candidates, ' +
-          count.toLocaleString() + ' keys tried)</div>';
+          '<div class="grind-display">' +
+          '<div class="grind-stats">' +
+          '<div class="grind-stat"><span class="grind-num">' + count.toLocaleString() + '</span><span class="grind-lbl">keys generated</span></div>' +
+          '<div class="grind-stat"><span class="grind-num">' + candidates.length + '</span><span class="grind-lbl">"sat" matches</span></div>' +
+          '<div class="grind-stat"><span class="grind-num">z=' + best.scan.bestZ.toFixed(1) + '</span><span class="grind-lbl">best so far (need ' + MIN_Z + ')</span></div>' +
+          '</div>' +
+          '<div class="progress-bar"><div class="fill" style="width:' + Math.min(90, best.scan.bestZ / MIN_Z * 90) + '%"></div></div>' +
+          '<div class="grind-explain">Best outlier so far (z=' + best.scan.bestZ.toFixed(2) + ') is not dramatic enough yet. Need repeating characters that are <strong>visually recognizable</strong>. Continuing to grind…</div>' +
+          '</div>';
         TARGET += 30; // raise bar for next batch
         setTimeout(findBatch, 10);
         return;
       }
       // Use the best as Alice (dramatic entropy outlier), second for the comparison key
-      finishSection2(best.npub, second.npub, word, count, best.scan.bestZ);
+      finishSection2(best.npub, second.npub, word, count, best.scan.bestZ, candidates.length);
     }
 
-    function finishSection2(npub1, npub2, word, totalTried, bestZ) {
+    function finishSection2(npub1, npub2, word, totalTried, bestZ, totalCands) {
       state.sec2keys = { npub1, npub2, word };
       state.aliceNpub = npub1;
       state.aliceWord = word;
-      let html = '<div class="status-msg found">✓ Found 2 keys with "' + word + '" in ' + totalTried.toLocaleString() + ' total attempts';
-      html += ' (best entropy outlier z=' + bestZ.toFixed(2) + ')</div>';
+      let html = '<div class="status-msg found">✓ Ground ' + totalTried.toLocaleString() + ' keys, scanned ' + totalCands + ' "sat" matches, found a dramatic outlier (z=' + bestZ.toFixed(2) + ')</div>';
+      html += '<div class="grind-summary">' +
+        '<div class="grind-stat-inline">' + totalTried.toLocaleString() + ' total keys generated</div>' +
+        '<div class="grind-stat-inline">' + totalCands + ' contained "sat"</div>' +
+        '<div class="grind-stat-inline">1 had a dramatically recognizable pattern</div>' +
+        '</div>';
       html += '<div class="side-by-side">';
-      html += '<div><div class="card-label">Key A</div><div class="npub-display">npub1' + highlightNpub(npub1, word, 'vanity') + '</div></div>';
+      html += '<div><div class="card-label">Key A (chosen for recognizability)</div><div class="npub-display">npub1' + highlightNpub(npub1, word, 'vanity') + '</div></div>';
       html += '<div><div class="card-label">Key B</div><div class="npub-display">npub1' + highlightNpub(npub2, word, 'vanity') + '</div></div>';
       html += '</div>';
-      html += '<div class="note">Both keys contain "' + word + '" but are completely different. No way to distinguish which belongs to whom.</div>';
+      html += '<div class="note">Both contain "' + word + '" — but we ground ' + totalTried.toLocaleString() + ' keys to find Key A. Its entropy outlier makes it visually <strong>recognizable</strong>. Click Next to see the pattern the scanner found.</div>';
       document.getElementById('s2-result').innerHTML = html;
       btn.textContent = 'Regenerate';
       btn.disabled = false;
