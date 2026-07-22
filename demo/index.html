@@ -671,16 +671,17 @@
       <p>The scanner optimizes for the highest quality score. This naturally selects patterns that are <strong>both rare (high z) and human-recognizable (few unique chars)</strong>.</p>
     </div>
 
-    <h3 style="color:var(--header);font-size:18px;margin-top:24px;margin-bottom:8px;">Now Let's Mine</h3>
-    <div class="slider-container">
+    <h3 style="color:var(--header);font-size:18px;margin-top:24px;margin-bottom:8px;">Mining in Progress</h3>
+    <p style="color:var(--body);font-size:13px;">Mining started automatically when you entered this section. You don't need to press anything.</p>
+    <div class="slider-container" id="sec2-slider-box" style="display:none;">
       <label class="slider-label">Minimum fingerprint size: <span id="minW-label">16</span> chars (<span id="minW-grid">4×4</span> grid)</label>
       <input type="range" id="minW-slider" min="16" max="49" step="9" value="16" class="slider" onchange="updateMinWLabel()">
       <div class="slider-marks">
         <span>4×4</span><span>5×5</span><span>6×6</span><span>7×7</span>
       </div>
-      <div class="note" style="font-size:11px;">Larger = harder to forge = more asymmetric. Smaller windows are too easy for an attacker to replicate.</div>
+      <div class="note" style="font-size:11px;">Larger = harder to forge = more asymmetric.</div>
     </div>
-    <button id="btn2" onclick="generateSection2()">Generate Two Vanity Keys</button>
+    <button id="btn2" onclick="generateSection2()" style="display:none;">Regenerate</button>
     <div id="s2-result"></div>
 
     <div class="insight">
@@ -1298,8 +1299,12 @@ window.generateSection2 = function() {
     html += '</div>';
     html += '<div class="note">Both contain "' + word + '" — but Key A has a ' + Math.sqrt(best.scan.bestW) + '×' + Math.sqrt(best.scan.bestW) + ' window of unusually low entropy. An attacker would need to replicate Alice\'s EXACT pattern, not just find any low-entropy NPUB. Click Next to see the pattern.</div>';
     document.getElementById('s2-result').innerHTML = html;
+    document.getElementById('sec2-slider-box').style.display = '';
     btn.textContent = 'Regenerate';
     btn.disabled = false;
+    btn.style.display = '';
+    // Scroll to results
+    document.getElementById('s2-result').scrollIntoView({behavior:'smooth', block:'center'});
   }
 
   setTimeout(grindLoop, 50);
