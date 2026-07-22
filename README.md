@@ -53,6 +53,7 @@ different fingerprint is instantly visible.
 - [ADR-002: Split Zones — Disjoint Charsets](docs/adr/ADR-002-split-zones-disjoint-charsets.md)
 - [ADR-003: Multi-Scale Z-Score Outlier Detection](docs/adr/ADR-003-multiscale-zscore-detection.md)
 - [ADR-004: Sequential Grinding Strategy](docs/adr/ADR-004-sequential-grinding-strategy.md)
+- [ADR-005: Wrapped 2D Fingerprint Card Rendering](docs/adr/ADR-005-wrapped-2d-fingerprint-card.md)
 
 ## Repository Structure
 
