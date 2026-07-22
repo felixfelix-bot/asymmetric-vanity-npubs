@@ -659,23 +659,23 @@
 
     <div class="metric-card highlight-card">
       <h3>Quality: The Best of Both Worlds</h3>
-      <div class="metric-formula">quality = z ÷ (unique_chars)³</div>
-      <p>This single metric balances both goals:</p>
+      <div class="metric-formula">quality = 10·log₁₀(z ÷ (unique_chars)³)  dB</div>
+      <p>Logarithmic scale — like audio decibels. Every 10 dB is a 10× difference in raw quality. This spreads small values into a readable range:</p>
       <div class="metric-table">
         <div class="metric-row metric-header">
           <div>Pattern</div><div>z</div><div>unique</div><div>quality</div><div>verdict</div>
         </div>
         <div class="metric-row">
-          <div>W=16, 3 chars</div><div>8.0</div><div>3</div><div>0.30</div><div class="good">★ recognizable + rare</div>
+          <div>W=16, 3 chars</div><div>8.0</div><div>3</div><div>−5.3 dB</div><div class="good">★ recognizable + rare</div>
         </div>
         <div class="metric-row">
-          <div>W=49, 8 chars</div><div>5.0</div><div>8</div><div>0.01</div><div class="bad">rare but unrecognizable</div>
+          <div>W=49, 8 chars</div><div>5.0</div><div>8</div><div>−20.1 dB</div><div class="bad">rare but unrecognizable</div>
         </div>
         <div class="metric-row">
-          <div>W=16, 2 chars</div><div>5.0</div><div>2</div><div>0.63</div><div class="good">★ very recognizable</div>
+          <div>W=16, 2 chars</div><div>5.0</div><div>2</div><div>−2.0 dB</div><div class="good">★ very recognizable</div>
         </div>
         <div class="metric-row">
-          <div>W=25, 7 chars</div><div>6.0</div><div>7</div><div>0.02</div><div class="bad">meh</div>
+          <div>W=25, 7 chars</div><div>6.0</div><div>7</div><div>−17.6 dB</div><div class="bad">meh</div>
         </div>
       </div>
       <p>The scanner optimizes for the highest quality score. This naturally selects patterns that are <strong>both rare (high z) and human-recognizable (few unique chars)</strong>.</p>
@@ -895,6 +895,11 @@ function uniqueCharCount(str) {
   let seen = {};
   for (let c of str) seen[c] = true;
   return Object.keys(seen).length;
+}
+
+function qualityToDb(q) {
+  if (q <= 0) return '−∞';
+  return (10 * Math.log10(q)).toFixed(1);
 }
 
 function runEntropyScanner(dataStr, minW) {
@@ -1251,14 +1256,14 @@ window.generateSection2 = function() {
     html += '<div class="grind-stat"><span class="grind-num">' + satCount + '</span><span class="grind-lbl">"sat" matches</span></div>';
     if (bestZ > 0) {
       html += '<div class="grind-stat"><span class="grind-num">' + best.scan.bestUnique + '</span><span class="grind-lbl">unique chars (lower = better)</span></div>';
-      html += '<div class="grind-stat"><span class="grind-num">q=' + best.scan.bestQuality.toFixed(2) + '</span><span class="grind-lbl">quality (z÷unique³)</span></div>';
+      html += '<div class="grind-stat"><span class="grind-num">' + qualityToDb(best.scan.bestQuality) + ' dB</span><span class="grind-lbl">quality (10·log₁₀(z÷unique³))</span></div>';
     } else {
       html += '<div class="grind-stat"><span class="grind-num">—</span><span class="grind-lbl">best quality</span></div>';
     }
     html += '</div>';
     html += '<div class="progress-bar"><div class="fill" style="width:' + pct + '%"></div></div>';
     if (bestZ > 0) {
-      html += '<div class="grind-explain">Best so far: q=' + best.scan.bestQuality.toFixed(2) + ' (z=' + bestZ.toFixed(1) + ', ' + best.scan.bestUnique + ' unique chars, W=' + best.scan.bestW + '). Fewer unique chars = more recognizable. Still grinding…</div>';
+      html += '<div class="grind-explain">Best so far: ' + qualityToDb(best.scan.bestQuality) + ' dB (z=' + bestZ.toFixed(1) + ', ' + best.scan.bestUnique + ' unique chars, W=' + best.scan.bestW + '). Fewer unique chars = more recognizable. Still grinding…</div>';
     } else {
       html += '<div class="grind-explain">Grinding keys looking for "sat" matches. Each match is scanned for low-entropy patterns (W≥' + minW + '). The longer we grind, the better the outlier.</div>';
     }
@@ -1279,7 +1284,7 @@ window.generateSection2 = function() {
     state.aliceNpub = npub1;
     state.aliceWord = word;
     let grid = Math.sqrt(minW);
-    let html = '<div class="status-msg found">✓ Mining complete — ' + totalTried.toLocaleString() + ' keys, ' + totalSats + ' "sat" matches. Best pattern: ' + best.scan.bestUnique + ' unique chars in W=' + best.scan.bestW + ' (' + Math.sqrt(best.scan.bestW) + '×' + Math.sqrt(best.scan.bestW) + ' grid), quality q=' + best.scan.bestQuality.toFixed(2) + '</div>';
+    let html = '<div class="status-msg found">✓ Mining complete — ' + totalTried.toLocaleString() + ' keys, ' + totalSats + ' "sat" matches. Best pattern: ' + best.scan.bestUnique + ' unique chars in W=' + best.scan.bestW + ' (' + Math.sqrt(best.scan.bestW) + '×' + Math.sqrt(best.scan.bestW) + ' grid), quality ' + qualityToDb(best.scan.bestQuality) + ' dB</div>';
     html += '<div class="grind-summary">';
     html += '<div class="grind-stat-inline">' + totalTried.toLocaleString() + ' keys in 60s</div>';
     html += '<div class="grind-stat-inline">' + totalSats + ' contained "sat"</div>';
@@ -1320,7 +1325,7 @@ function runSection3() {
   html += '<div><span class="label">Window size (W):</span> <span class="value">' + result.bestW + '</span> (' + Math.sqrt(result.bestW) + '×' + Math.sqrt(result.bestW) + ' grid)</div>';
   html += '<div><span class="label">Unique characters:</span> <span class="value">' + result.bestUnique + '</span> out of ' + result.bestW + ' (fewer = more recognizable)</div>';
   html += '<div><span class="label">Z-score:</span> <span class="value">' + result.bestZ.toFixed(2) + '</span> (rarity vs random)</div>';
-  html += '<div><span class="label">Quality (z÷unique³):</span> <span class="value">' + result.bestQuality.toFixed(2) + '</span></div>';
+  html += '<div><span class="label">Quality:</span> <span class="value">' + qualityToDb(result.bestQuality) + ' dB</span> (10·log₁₀(z÷unique³))</div>';
   html += '<div><span class="label">Entropy:</span> <span class="value">' + result.bestEntropy.toFixed(3) + '</span> bits (expected ~' + BASELINE[result.bestW].mean + ')</div>';
   html += '<div><span class="label">Winning chars:</span> <span class="value">' + winnerChars + '</span></div>';
   html += '</div>';
