@@ -623,11 +623,87 @@
 <body>
 <div class="container">
   <h1>🔐 Asymmetric Vanity NPUBs</h1>
-  <p class="subtitle">Interactive demo — progress through 6 sections to understand the concept</p>
+  <p class="subtitle">Interactive demo — progress through 7 sections to understand the concept</p>
+
+  <!-- SECTION 0: ZOOKO'S TRIANGLE -->
+  <div class="section" id="sec0">
+    <span class="section-number">1 / 7</span>
+    <h2>Zooko's Triangle</h2>
+    <p>In 2001, Zooko Wilcox-O'Hairn observed a fundamental trilemma for naming systems. He argued that a name can have at most <strong>two</strong> of these three properties:</p>
+
+    <div style="text-align:center;margin:24px 0;">
+      <svg width="400" height="360" viewBox="0 0 400 360" style="max-width:100%;height:auto;">
+        <!-- Triangle -->
+        <polygon points="200,30 50,320 350,320"
+                 fill="rgba(88,166,255,0.04)"
+                 stroke="#30363d" stroke-width="2"/>
+
+        <!-- Corner: Human-Memorable (top) -->
+        <circle cx="200" cy="30" r="8" fill="#3fb950"/>
+        <text x="200" y="15" text-anchor="middle" fill="#3fb950" font-size="15" font-weight="bold" font-family="monospace">Human-Memorable</text>
+
+        <!-- Corner: Decentralized (bottom-left) -->
+        <circle cx="50" cy="320" r="8" fill="#3fb950"/>
+        <text x="50" y="345" text-anchor="middle" fill="#3fb950" font-size="14" font-weight="bold" font-family="monospace">Decentralized</text>
+
+        <!-- Corner: Secure (bottom-right) -->
+        <circle cx="350" cy="320" r="8" fill="#3fb950"/>
+        <text x="350" y="345" text-anchor="middle" fill="#3fb950" font-size="14" font-weight="bold" font-family="monospace">Secure</text>
+
+        <!-- Edge labels -->
+        <text x="110" y="170" text-anchor="middle" fill="#8b949e" font-size="11" font-family="monospace" transform="rotate(-62,110,170)">pick any two</text>
+        <text x="290" y="170" text-anchor="middle" fill="#8b949e" font-size="11" font-family="monospace" transform="rotate(62,290,170)">pick any two</text>
+        <text x="200" y="338" text-anchor="middle" fill="#8b949e" font-size="11" font-family="monospace">pick any two</text>
+
+        <!-- DNS example (Human-Memorable + Secure, NOT Decentralized) -->
+        <circle cx="200" cy="90" r="6" fill="#58a6ff"/>
+        <text x="200" y="80" text-anchor="middle" fill="#58a6ff" font-size="12" font-family="monospace">DNS / ICANN</text>
+        <text x="200" y="100" text-anchor="middle" fill="#8b949e" font-size="10" font-family="monospace">readable + secure, centralized</text>
+
+        <!-- Bitcoin addresses (Secure + Decentralized, NOT Human-Memorable) -->
+        <circle cx="170" cy="270" r="6" fill="#d29922"/>
+        <text x="105" y="270" text-anchor="end" fill="#d29922" font-size="12" font-family="monospace">Bitcoin</text>
+        <text x="105" y="285" text-anchor="end" fill="#8b949e" font-size="10" font-family="monospace">secure + decentralized, not readable</text>
+
+        <!-- NPUBs (Secure + Decentralized, NOT Human-Memorable) -->
+        <circle cx="230" cy="270" r="6" fill="#d29922"/>
+        <text x="295" y="270" fill="#d29922" font-size="12" font-family="monospace">NPUBs</text>
+        <text x="295" y="285" fill="#8b949e" font-size="10" font-family="monospace">secure + decentralized, not readable</text>
+
+        <!-- Our goal: approach center -->
+        <circle cx="200" cy="200" r="10" fill="none" stroke="#3fb950" stroke-width="2" stroke-dasharray="4,2"/>
+        <text x="200" y="205" text-anchor="middle" fill="#3fb950" font-size="11" font-weight="bold" font-family="monospace">our goal</text>
+      </svg>
+    </div>
+
+    <div class="comparison-row">
+      <div>
+        <div class="card-label">DNS (.com domains)</div>
+        <div class="npub-display" style="font-size:12px;">
+          ✅ Human-memorable: <span style="color:var(--green)">example.com</span><br>
+          ✅ Secure: TLS certificates<br>
+          ❌ <span style="color:var(--red)">Centralized: ICANN controls everything</span>
+        </div>
+      </div>
+      <div>
+        <div class="card-label">Nostr NPUBs</div>
+        <div class="npub-display" style="font-size:12px;">
+          ✅ Decentralized: anyone generates keys<br>
+          ✅ Secure: 128-bit secp256k1<br>
+          ❌ <span style="color:var(--red)">Not human-memorable: npub1q3x8z...</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="insight">
+      <strong>Our question:</strong> Can we push NPUBs closer to the center of the triangle — adding human-readability <em>without</em> sacrificing security or decentralization? Vanity mining is one approach. But it has a problem...
+    </div>
+    <button class="next-btn" onclick="revealSection(1)">Next: Vanity Mining →</button>
+  </div>
 
   <!-- SECTION 1 -->
-  <div class="section" id="sec1">
-    <span class="section-number">1 / 6</span>
+  <div class="section hidden" id="sec1">
+    <span class="section-number">2 / 7</span>
     <h2>Vanity NPUB Grinding</h2>
     <p>Generate random secp256k1 keypairs until the NPUB contains your chosen word. This is "vanity mining" — anyone can do it.</p>
     <div class="controls">
@@ -649,7 +725,7 @@
 
   <!-- SECTION 2 -->
   <div class="section hidden" id="sec2">
-    <span class="section-number">2 / 6</span>
+    <span class="section-number">3 / 7</span>
     <h2>The Problem: No Asymmetry</h2>
     <p>Here are two keypairs, both with "<span style="color:var(--green)">sat</span>" in their NPUB. Anyone can make these. There's no way to tell them apart.</p>
     
@@ -753,7 +829,7 @@
 
   <!-- SECTION 3 -->
   <div class="section hidden" id="sec3">
-    <span class="section-number">3 / 6</span>
+    <span class="section-number">4 / 7</span>
     <h2>Low-Entropy Discovery</h2>
     <p>Now we scan the first NPUB from Section 2 with a multi-scale entropy scanner. We look for naturally-occurring low-entropy (repetitive) windows — outliers that were never designed, just discovered.</p>
     <div id="s3-result"></div>
@@ -765,7 +841,7 @@
 
   <!-- SECTION 4 -->
   <div class="section hidden" id="sec4">
-    <span class="section-number">4 / 6</span>
+    <span class="section-number">5 / 7</span>
     <h2>The Asymmetry</h2>
     <p>Alice's fingerprint (left) was discovered for free. An attacker (right) generates a new key with the same vanity prefix — but their fingerprint is completely different.</p>
     <div class="controls">
@@ -780,7 +856,7 @@
 
   <!-- SECTION 5 -->
   <div class="section hidden" id="sec5">
-    <span class="section-number">5 / 6</span>
+    <span class="section-number">6 / 7</span>
     <h2>Vanity + Anti-Phish: Split Zones</h2>
     <p>The complete identity system combines a human-readable vanity prefix (green zone) with the machine-discovered anti-phish fingerprint (orange zone).</p>
     <div id="s5-result"></div>
@@ -792,7 +868,7 @@
 
   <!-- SECTION 6 -->
   <div class="section hidden" id="sec6">
-    <span class="section-number">6 / 6</span>
+    <span class="section-number">7 / 7</span>
     <h2>Offset Grinding: Trustless Service</h2>
     <p>A grinding service can find a vanity offset for your NPUB using ONLY your public key. It computes P + d·G for d=1,2,3... — never seeing your secret key.</p>
     <div class="controls">
