@@ -346,8 +346,10 @@
     <p>A grinding service can find a vanity offset for your NPUB using ONLY your public key. It computes P + d·G for d=1,2,3... — never seeing your secret key.</p>
     <div class="controls">
       <input type="text" id="vanity6" value="mesh" placeholder="vanity word">
+      <input type="text" id="usernpub6" placeholder="paste your npub1... (optional)" style="flex:2">
       <button id="btn6" onclick="startOffsetGrinding()">Start Offset Grinding</button>
     </div>
+    <div class="note" style="margin-bottom:8px;">Leave NPUB blank for a demo key, or paste a real npub1... to grind a vanity offset for it live.</div>
     <div id="s6-userkey"></div>
     <div class="stats">
       <div class="stat"><div class="stat-label">Offsets Tried</div><div class="stat-value" id="s6-count">0</div></div>
@@ -932,11 +934,37 @@ window.startOffsetGrinding = function() {
   btn.textContent = 'Stop';
   grinding6.running = true;
 
-  // Generate a fresh user keypair (simulating "the user")
-  grinding6.userPrivKey = utils.randomPrivateKey();
-  grinding6.userPoint = ProjectivePoint.fromPrivateKey(grinding6.userPrivKey);
-  let userPubBytes = grinding6.userPoint.toRawBytes(true).slice(1); // 32 bytes x-only
-  grinding6.userNpub = pubKeyToNpub(userPubBytes);
+  // Check if user provided their own NPUB
+  let userNpubInput = document.getElementById('usernpub6').value.trim();
+  let isCustomNpub = false;
+  try {
+    if (userNpubInput && userNpubInput.startsWith('npub1') && userNpubInput.length > 50) {
+      // Decode NPUB to 32-byte x-only pubkey
+      let pubBytes = npubToBytes(userNpubInput);
+      if (!pubBytes || pubBytes.length !== 32) throw new Error('Not 32 bytes');
+      // Construct point from compressed key (0x02 prefix = even y)
+      let compressed = new Uint8Array(33);
+      compressed[0] = 0x02;
+      compressed.set(pubBytes, 1);
+      grinding6.userPoint = ProjectivePoint.fromHex(compressed);
+      grinding6.userNpub = userNpubInput;
+      grinding6.userPrivKey = null; // We don't have the private key!
+      isCustomNpub = true;
+    }
+  } catch(e) {
+    alert('Invalid NPUB format. Please check and try again.');
+    grinding6.running = false;
+    btn.textContent = 'Start Offset Grinding';
+    return;
+  }
+
+  if (!isCustomNpub) {
+    // Generate a fresh demo keypair
+    grinding6.userPrivKey = utils.randomPrivateKey();
+    grinding6.userPoint = ProjectivePoint.fromPrivateKey(grinding6.userPrivKey);
+    let userPubBytes = grinding6.userPoint.toRawBytes(true).slice(1); // 32 bytes x-only
+    grinding6.userNpub = pubKeyToNpub(userPubBytes);
+  }
 
   // Generator G
   grinding6.G = ProjectivePoint.fromPrivateKey(1n);
@@ -946,10 +974,16 @@ window.startOffsetGrinding = function() {
   grinding6.lastUpdate = Date.now();
 
   let userNpubShort = grinding6.userNpub.substring(0, 30) + '…';
-  document.getElementById('s6-userkey').innerHTML =
-    '<div class="key-info"><span class="badge alice">USER</span> Secret key (nsec, hex): ' + bufToHex(grinding6.userPrivKey) + '</div>' +
-    '<div class="key-info"><span class="badge alice">USER</span> Public key (npub): ' + userNpubShort + '</div>' +
-    '<div class="note">The service only sees the public key above. It will compute P + d·G for d=1,2,3…</div>';
+  if (isCustomNpub) {
+    document.getElementById('s6-userkey').innerHTML =
+      '<div class="key-info"><span class="badge alice">YOUR NPUB</span> ' + userNpubShort + '</div>' +
+      '<div class="note">This is YOUR public key. The service will compute P + d·G to find a vanity offset. Your secret key stays on your device.</div>';
+  } else {
+    document.getElementById('s6-userkey').innerHTML =
+      '<div class="key-info"><span class="badge alice">DEMO USER</span> Secret key (nsec, hex): ' + bufToHex(grinding6.userPrivKey) + '</div>' +
+      '<div class="key-info"><span class="badge alice">DEMO USER</span> Public key (npub): ' + userNpubShort + '</div>' +
+      '<div class="note">The service only sees the public key above. It will compute P + d·G for d=1,2,3…</div>';
+  }
   document.getElementById('s6-result').innerHTML = '<div class="status-msg loading">Computing offsets…</div>';
   document.getElementById('s6-progress').style.width = '5%';
 
@@ -994,14 +1028,26 @@ window.startOffsetGrinding = function() {
       document.getElementById('s6-progress').style.width = '100%';
       let highlighted = 'npub1' + highlightNpub(found.npub, word, 'vanity');
       let html = '<div class="status-msg found">✓ Found! Offset d = ' + found.d + ' (tried ' + grinding6.count.toLocaleString() + ' offsets in ' + elapsed.toFixed(1) + 's)</div>';
-      html += '<div class="card-label">Target NPUB (P + ' + found.d + '·G):</div>';
+      html += '<div class="card-label">Your new Vanity NPUB (P + ' + found.d + '·G):</div>';
       html += '<div class="npub-display">' + highlighted + '</div>';
       html += '<div class="math-display">';
-      html += 'new_nsec = (old_nsec + ' + found.d + ') mod n<br>';
-      html += 'new_npub = bech32((k + ' + found.d + ') · G)';
+      if (isCustomNpub) {
+        html += '<strong>To apply:</strong><br>';
+        html += 'new_nsec = (your_nsec + ' + found.d + ') mod n<br>';
+        html += 'Use nak: <code>nak combine your_nsec ' + found.d + '</code><br>';
+        html += 'Or Python: <code>nsec_int + ' + found.d + ' % n</code>';
+      } else {
+        html += 'new_nsec = (old_nsec + ' + found.d + ') mod n<br>';
+        html += 'new_npub = bech32((k + ' + found.d + ') · G)';
+      }
       html += '</div>';
-      html += '<div class="note">To use this new NPUB, the user simply adds ' + found.d + ' to their private key modulo n. The service never knew k — it only computed with the public key P.</div>';
-      html += '<div class="insight"><strong>Trustless:</strong> The grinding service can be completely untrusted. It cannot steal your key. The offset d is only useful to whoever holds the original nsec.</div>';
+      if (isCustomNpub) {
+        html += '<div class="note">This offset only works with YOUR private key. Nobody else can use it. The service never saw your secret key — it only used your public NPUB.</div>';
+        html += '<div class="insight"><strong>Trustless VNAAS:</strong> A real service could charge sats for this offset via atomic swap (ADR-008). Payment reveals d simultaneously — neither party can cheat.</div>';
+      } else {
+        html += '<div class="note">To use this new NPUB, the user simply adds ' + found.d + ' to their private key modulo n. The service never knew k — it only computed with the public key P.</div>';
+        html += '<div class="insight"><strong>Trustless:</strong> The grinding service can be completely untrusted. It cannot steal your key. The offset d is only useful to whoever holds the original nsec.</div>';
+      }
       document.getElementById('s6-result').innerHTML = html;
     } else {
       document.getElementById('s6-result').innerHTML = '<div class="status-msg loading">Testing offset d=' + d.toString() + '… (' + grinding6.count.toLocaleString() + ' tried)</div>';
