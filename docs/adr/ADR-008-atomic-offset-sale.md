@@ -34,6 +34,60 @@ trick uses a **hash lock**:
 
 The hash lock guarantees: claiming the payment automatically reveals the secret.
 
+### Why the Hash Lock Is Safe — The Dual Condition
+
+A common question: "If Alice publishes d to claim the funds, can Bob use d to
+claim the funds back first? Can an external observer steal the funds?"
+
+**No.** The hash lock is NOT just "reveal d and get the money." It is a
+**dual condition**: reveal d AND provide a signature from a specific key.
+
+The Bitcoin script makes this explicit:
+
+```
+OP_IF
+  OP_SHA256 <h> OP_EQUALVERIFY <seller_pubkey> OP_CHECKSIG
+OP_ELSE
+  <48h_timelock> OP_CHECKSEQUENCEVERIFY <buyer_pubkey> OP_CHECKSIG
+OP_ENDIF
+```
+
+To claim via the hashlock path, BOTH conditions must be met:
+
+1. Provide d such that SHA256(d) = h (the hash preimage)
+2. Provide a valid signature from seller_pubkey (Alice's key)
+
+**Before Alice claims — what can Bob do?**
+
+- Bob knows h, NOT d. Cannot satisfy condition 1.
+- Bob's own refund path is timelocked — cannot activate until timeout (e.g., 48h).
+- Bob is stuck. He can only wait.
+
+**When Alice claims:**
+
+- Alice submits a transaction spending to herself, including d in the witness.
+- The transaction pays Alice. It is confirmed immediately.
+- d becomes public, but the output is already spent — it no longer exists.
+
+**After Alice claims — what about external observers?**
+
+- They see d on-chain. But the hashlock also requires Alice's signature.
+- An observer cannot produce Alice's signature. Knowing d alone is useless.
+- The output is already spent anyway — there is nothing left to claim.
+
+**The one-way valve:** only Alice knows d. Only Alice can open the valve.
+Once she opens it, the funds move to her instantly. Bob learning d afterward
+is irrelevant — the output is gone.
+
+**Bob's only path:** the timelocked refund. This activates AFTER the timeout.
+Alice always claims well before that. If Alice never claims, Bob gets his
+refund automatically.
+
+This is why the swap is atomic:
+- Alice is protected by the hashlock (Bob can't claim without d, which only Alice knows)
+- Bob is protected by the timelock (refund if Alice never claims)
+- Third parties are blocked by the signature requirement (d alone is not enough)
+
 ### Why the Offset Is a Perfect Atomic Swap Asset
 
 The offset `d` has ideal properties for hash-locked atomic swaps:
