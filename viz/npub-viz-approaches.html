@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#0d1117; color:#c9d1d9; font-family:'SF Mono',monospace; padding:20px; }
+h1 { color:#58a6ff; font-size:16px; margin-bottom:3px; }
+.sub { color:#8b949e; font-size:12px; margin-bottom:15px; }
+.section { margin-bottom:25px; border:1px solid #30363d; border-radius:12px; padding:15px; background:#161b22; }
+.section-title { color:#f0883e; font-size:13px; font-weight:bold; margin-bottom:10px; }
+.section-desc { color:#8b949e; font-size:11px; margin-bottom:10px; }
+
+/* Visualizations */
+.row { display:flex; gap:25px; align-items:flex-start; flex-wrap:wrap; }
+
+/* 1. Entropy Wave */
+.wave-container { display:flex; align-items:flex-end; gap:1px; height:50px; margin-bottom:5px; }
+.wave-bar { width:5px; border-radius:1px 1px 0 0; transition:height 0.3s; }
+
+/* 2. Color Ring */
+.ring-container { position:relative; width:120px; height:120px; }
+.ring-seg { position:absolute; border-radius:50%; }
+
+/* 3. Pixel Avatar */
+.avatar-grid { display:grid; gap:1px; }
+.avatar-cell { border-radius:2px; }
+
+/* 4. Dominant Color Badge */
+.badge { width:80px; height:80px; border-radius:16px; display:flex; flex-direction:column; align-items:center; justify-content:center; font-weight:bold; }
+
+/* 5. Fingerprint Stripes */
+.stripes { display:flex; height:30px; border-radius:6px; overflow:hidden; border:1px solid #30363d; }
+.stripe { height:100%; }
+
+/* 6. Hilbert Curve Dot Map */
+.dot-grid { display:grid; gap:3px; }
+.dot { width:12px; height:12px; border-radius:50%; }
+
+.npub-label { font-size:10px; color:#8b949e; margin-top:5px; word-break:break-all; max-width:200px; }
+.npub-label .vanity { color:#3fb950; font-weight:bold; }
+.npub-label .lowent { color:#f0883e; font-weight:bold; }
+
+.col { display:flex; flex-direction:column; align-items:center; }
+.col-title { font-size:11px; color:#d2a8ff; margin-bottom:6px; text-align:center; }
+</style>
+</head>
+<body>
+
+<h1>NPUB Visualization Approaches — 6 Concepts</h1>
+<div class="sub">Each concept shown for 3 NPUB types: Random | Vanity "meshmate" | Combined</div>
+
+<!-- APPROACH 1: Entropy Wave -->
+<div class="section">
+  <div class="section-title">1. ENTROPY WAVE — Sliding window H(bar chart)</div>
+  <div class="section-desc">Height = local entropy. Low bars = pattern zone. Human spots the "valley" = identity anchor.</div>
+  <div class="row">
+    <div class="col">
+      <div class="col-title">Random</div>
+      <div class="wave-container" id="wave-r"></div>
+      <div class="npub-label">All bars tall = no pattern</div>
+    </div>
+    <div class="col">
+      <div class="col-title">Vanity Only</div>
+      <div class="wave-container" id="wave-v"></div>
+      <div class="npub-label">Slight dip at start = <span class="vanity">meshmate</span></div>
+    </div>
+    <div class="col">
+      <div class="col-title">Combined</div>
+      <div class="wave-container" id="wave-c"></div>
+      <div class="npub-label">Deep valley = <span class="vanity">meshmate</span> in <span class="lowent">low-ent zone</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- APPROACH 2: Dominant Color Badge -->
+<div class="section">
+  <div class="section-title">2. DOMINANT COLOR BADGE — "What color is your NPUB?"</div>
+  <div class="section-desc">Low-entropy sections produce dominant colors. Random NPUBs = grey/multicolor. Combined = badge with name.</div>
+  <div class="row">
+    <div class="col">
+      <div class="col-title">Random</div>
+      <div class="badge" style="background:linear-gradient(135deg,#ff6b6b,#4ecdc4,#45b7d1,#f9ca24,#6c5ce7,#fd79a8);">
+        <span style="font-size:24px;">~</span>
+        <span style="font-size:8px;color:white;text-shadow:0 0 3px black;">no color</span>
+      </div>
+      <div class="npub-label">Multicolor = grey identity</div>
+    </div>
+    <div class="col">
+      <div class="col-title">Vanity Only</div>
+      <div class="badge" style="background:linear-gradient(135deg,#ff6b6b,#4ecdc4,#45b7d1,#f9ca24,#6c5ce7,#fd79a8);">
+        <span style="font-size:11px;color:#3fb950;text-shadow:0 0 4px black;">meshmate</span>
+      </div>
+      <div class="npub-label">Same multicolor, name just pasted on</div>
+    </div>
+    <div class="col">
+      <div class="col-title">Combined</div>
+      <div class="badge" style="background:linear-gradient(135deg,#e84393,#e17055,#636e72,#2d3436,#e17055,#e84393);">
+        <span style="font-size:11px;color:white;text-shadow:0 0 4px black;">meshmate</span>
+        <span style="font-size:7px;color:#f0883e;">6-color palette</span>
+      </div>
+      <div class="npub-label">Dominant pink/orange/grey palette = recognizable</div>
+    </div>
+  </div>
+</div>
+
+<!-- APPROACH 3: Fingerprint Stripes -->
+<div class="section">
+  <div class="section-title">3. FINGERPRINT STRIPES — RLE compressed view</div>
+  <div class="section-desc">Each stripe = a run of same char. Width = run length. Color = char. Like a barcode/fingerprint.</div>
+  <div class="row">
+    <div class="col">
+      <div class="col-title">Random (58 chars)</div>
+      <div class="stripes" id="stripes-r" style="width:300px;"></div>
+      <div class="npub-label">All thin stripes = no runs</div>
+    </div>
+    <div class="col">
+      <div class="col-title">Combined</div>
+      <div class="stripes" id="stripes-c" style="width:300px;"></div>
+      <div class="npub-label">One thick stripe = low-entropy zone with name</div>
+    </div>
+    <div class="col">
+      <div class="col-title">Attacker (different pattern)</div>
+      <div class="stripes" id="stripes-a" style="width:300px;"></div>
+      <div class="npub-label">Different stripe pattern = not Alice</div>
+    </div>
+  </div>
+</div>
+
+<!-- APPROACH 4: Pixel Avatar (Identicon) -->
+<div class="section">
+  <div class="section-title">4. PIXEL AVATAR — Entropy-aware identicon</div>
+  <div class="section-desc">8x8 grid from NPUB data. Symmetric like GitHub identicons. Low entropy = simpler avatar = easier to remember.</div>
+  <div class="row">
+    <div class="col">
+      <div class="col-title">Random</div>
+      <div class="avatar-grid" id="avatar-r" style="grid-template-columns:repeat(8,10px);"></div>
+      <div class="npub-label">Complex = hard to distinguish</div>
+    </div>
+    <div class="col">
+      <div class="col-title">Vanity Only</div>
+      <div class="avatar-grid" id="avatar-v" style="grid-template-columns:repeat(8,10px);"></div>
+      <div class="npub-label">Same complexity as random</div>
+    </div>
+    <div class="col">
+      <div class="col-title">Combined</div>
+      <div class="avatar-grid" id="avatar-c" style="grid-template-columns:repeat(8,10px);"></div>
+      <div class="npub-label">Simple = memorable shape</div>
+    </div>
+  </div>
+</div>
+
+<!-- APPROACH 5: Dot Constellation -->
+<div class="section">
+  <div class="section-title">5. DOT CONSTELLATION — 2D position from char pairs</div>
+  <div class="section-desc">Each char pair = (x,y) coordinate. Connect dots. Low entropy = tight cluster. Random = scattered.</div>
+  <div class="row">
+    <div class="col">
+      <div class="col-title">Random</div>
+      <svg width="100" height="100" id="const-r" style="background:#21262d;border-radius:8px;"></svg>
+      <div class="npub-label">Scattered everywhere</div>
+    </div>
+    <div class="col">
+      <div class="col-title">Combined</div>
+      <svg width="100" height="100" id="const-c" style="background:#21262d;border-radius:8px;"></svg>
+      <div class="npub-label">Tight cluster = recognizable shape</div>
+    </div>
+    <div class="col">
+      <div class="col-title">Attacker</div>
+      <svg width="100" height="100" id="const-a" style="background:#21262d;border-radius:8px;"></svg>
+      <div class="npub-label">Different cluster location</div>
+    </div>
+  </div>
+</div>
+
+<!-- APPROACH 6: Wrapped Square + Name -->
+<div class="section">
+  <div class="section-title">6. WRAPPED SQUARE — User's idea, refined</div>
+  <div class="section-desc">58 chars wrapped to 8x8 grid. Low-entropy section = visual region. Size of region proportional to entropy savings.</div>
+  <div class="row">
+    <div class="col">
+      <div class="col-title">Random</div>
+      <div class="dot-grid" id="wrap-r" style="grid-template-columns:repeat(8,14px);"></div>
+      <div class="npub-label">Full rainbow, no region</div>
+    </div>
+    <div class="col">
+      <div class="col-title">Combined</div>
+      <div class="dot-grid" id="wrap-c" style="grid-template-columns:repeat(8,14px);"></div>
+      <div class="npub-label">Clear orange region = identity</div>
+    </div>
+    <div class="col">
+      <div class="col-title">Attacker</div>
+      <div class="dot-grid" id="wrap-a" style="grid-template-columns:repeat(8,14px);"></div>
+      <div class="npub-label">Region in different position</div>
+    </div>
+  </div>
+</div>
+
+</body>
+
+<script>
+const B32 = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+const C = {
+  'q':'#ff6b6b','p':'#4ecdc4','z':'#45b7d1','r':'#f9ca24','y':'#6c5ce7','9':'#a29bfe',
+  'x':'#fd79a8','8':'#fdcb6e','g':'#6ab04c','f':'#badc58','2':'#00b894','t':'#00cec9',
+  'v':'#0984e3','d':'#6c5ce7','w':'#e17055','0':'#dfe6e9','s':'#2d3436','3':'#fab1a0',
+  'j':'#74b9ff','n':'#a29bfe','5':'#55efc4','4':'#81ecec','k':'#ffeaa7','h':'#dfe6e9',
+  'c':'#b2bec3','e':'#636e72','6':'#2d3436','m':'#e84393','u':'#fd79a8','a':'#e17055','7':'#00b894','l':'#0984e3'
+};
+
+function rnd(n) { return B32[Math.floor(Math.random()*32)]; }
+function genRand() { let s=''; for(let i=0;i<58;i++) s+=rnd(); return s; }
+function genVanity() { return 'meshmate'+Array.from({length:50},rnd).join(''); }
+function genCombined() {
+  const cs=['m','e','s','h','a','t'];
+  let sec='meshmate'; for(let i=0;i<8;i++) sec+=cs[Math.floor(Math.random()*6)];
+  let s=''; for(let i=0;i<58;i++) s += (i>=15&&i<31) ? sec[i-15] : rnd(); return s;
+}
+function genAttacker() {
+  const cs=['m','e','s','h','a','t'];
+  let sec=''; for(let i=0;i<8;i++) sec+=cs[Math.floor(Math.random()*6)];
+  sec+='meshmate';
+  let s=''; for(let i=0;i<58;i++) s += (i>=12&&i<28) ? sec[i-12] : rnd(); return s;
+}
+
+function entropy(s) {
+  const f={}; for(const c of s) f[c]=(f[c]||0)+1;
+  let h=0; for(const c in f){const p=f[c]/s.length; h-=p*Math.log2(p);} return h;
+}
+
+const dataR = genRand();
+const dataV = genVanity();
+const dataC = genCombined();
+const dataA = genAttacker();
+
+// === 1. WAVE ===
+function buildWave(id, data) {
+  const el = document.getElementById(id);
+  const ws = 8;
+  let html = '';
+  for(let i=0;i<data.length;i++) {
+    const st=Math.max(0,i-Math.floor(ws/2)), en=Math.min(data.length,st+ws);
+    const h = entropy(data.slice(st,en));
+    const pct = Math.max(8, (h/5)*100);
+    const hue = (h/5)*240;
+    html += `<div class="wave-bar" style="height:${pct}%;background:hsl(${hue},70%,50%);"></div>`;
+  }
+  el.innerHTML = html;
+}
+buildWave('wave-r', dataR);
+buildWave('wave-v', dataV);
+buildWave('wave-c', dataC);
+
+// === 3. STRIPES (RLE) ===
+function buildStripes(id, data, width=300) {
+  const el = document.getElementById(id);
+  // Run-length encode
+  const runs = [];
+  let cur = data[0], count = 1;
+  for(let i=1;i<data.length;i++) {
+    if(data[i]===cur) count++;
+    else { runs.push({ch:cur,len:count}); cur=data[i]; count=1; }
+  }
+  runs.push({ch:cur,len:count});
+  
+  let html = '';
+  for(const r of runs) {
+    const w = (r.len / data.length) * width;
+    html += `<div class="stripe" style="width:${w}px;background:${C[r.ch]};" title="${r.ch} x${r.len}"></div>`;
+  }
+  el.innerHTML = html;
+}
+buildStripes('stripes-r', dataR);
+buildStripes('stripes-c', dataC);
+buildStripes('stripes-a', dataA);
+
+// === 4. AVATAR ===
+function buildAvatar(id, data) {
+  const el = document.getElementById(id);
+  let html = '';
+  for(let i=0;i<64;i++) {
+    if(i >= data.length) {
+      html += '<div class="avatar-cell" style="width:10px;height:10px;background:transparent;"></div>';
+    } else {
+      // Mirror: left half reflected (like identicons)
+      const col = i % 8;
+      let srcIdx = i;
+      if(col > 4) srcIdx = i - 8 + (7-col)*1 + (7-col); // crude mirror
+      const ch = data[Math.min(srcIdx, data.length-1)] || data[i % data.length];
+      html += `<div class="avatar-cell" style="width:10px;height:10px;background:${C[data[Math.min(i,data.length-1)]]};"></div>`;
+    }
+  }
+  el.innerHTML = html;
+}
+buildAvatar('avatar-r', dataR);
+buildAvatar('avatar-v', dataV);
+buildAvatar('avatar-c', dataC);
+
+// === 5. CONSTELLATION ===
+function buildConst(id, data) {
+  const el = document.getElementById(id);
+  let pts = '';
+  let lines = '';
+  let prev = null;
+  for(let i=0;i+1<data.length;i+=2) {
+    const x = (B32.indexOf(data[i]) / 31) * 80 + 10;
+    const y = (B32.indexOf(data[i+1]) / 31) * 80 + 10;
+    pts += `<circle cx="${x}" cy="${y}" r="2" fill="${C[data[i]]}"/>`;
+    if(prev) lines += `<line x1="${prev.x}" y1="${prev.y}" x2="${x}" y2="${y}" stroke="rgba(255,255,255,0.15)" stroke-width="0.5"/>`;
+    prev = {x,y};
+  }
+  el.innerHTML = lines + pts;
+}
+buildConst('const-r', dataR);
+buildConst('const-c', dataC);
+buildConst('const-a', dataA);
+
+// === 6. WRAPPED SQUARE ===
+function buildWrap(id, data, hlStart, hlEnd) {
+  const el = document.getElementById(id);
+  let html = '';
+  for(let i=0;i<64;i++) {
+    if(i>=data.length) {
+      html += '<div style="width:12px;height:12px;background:transparent;border-radius:2px;"></div>';
+    } else {
+      const hl = hlStart!==undefined && i>=hlStart && i<hlEnd;
+      html += `<div style="width:12px;height:12px;background:${C[data[i]]};border-radius:2px;${hl?'box-shadow:0 0 0 2px #f0883e;':''}"></div>`;
+    }
+  }
+  el.innerHTML = html;
+}
+buildWrap('wrap-r', dataR);
+buildWrap('wrap-c', dataC, 15, 31);
+buildWrap('wrap-a', dataA, 12, 28);
+</script>
+</html>

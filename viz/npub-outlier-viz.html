@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0d1117;color:#c9d1d9;font-family:'SF Mono',monospace;padding:20px}
+h1{color:#58a6ff;font-size:18px;margin-bottom:3px}
+h2{color:#f0883e;font-size:14px;margin-top:20px;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #30363d}
+.sub{color:#8b949e;font-size:12px;margin-bottom:15px}
+
+.npub-card{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:16px;margin-bottom:15px}
+.npub-card.attack{border-color:#f85149}
+.npub-card.ground{border-color:#3fb950}
+
+.card-title{font-size:13px;font-weight:bold;margin-bottom:4px}
+.card-title.attack{color:#f85149}
+.card-title.ground{color:#3fb950}
+.card-desc{color:#8b949e;font-size:11px;margin-bottom:10px}
+
+/* Scanner output */
+.scan-output{display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap}
+.scan-label{font-size:10px;color:#8b949e;margin-bottom:4px}
+
+/* NPUB string with highlight */
+.npub-line{font-family:monospace;font-size:11px;word-break:break-all;line-height:1.6;color:#8b949e;max-width:400px}
+.npub-line .normal{color:#484f58}
+.npub-line .outlier{background:#f0883e22;border-radius:2px;padding:0 1px;font-weight:bold;color:#f0883e}
+.npub-line .vanity{background:#3fb95022;border-radius:2px;padding:0 1px;font-weight:bold;color:#3fb950}
+
+/* Z-score badge */
+.z-badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:bold}
+.z-low{background:#21262d;color:#8b949e}
+.z-mid{background:#1a2332;color:#58a6ff}
+.z-high{background:#2a1a0e;color:#f0883e}
+.z-extreme{background:#2e0f0f;color:#f85149}
+
+/* Radar chart */
+.radar-wrap{display:flex;gap:30px;flex-wrap:wrap}
+
+/* Stats grid */
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px}
+.stat{display:flex;justify-content:space-between;padding:2px 0}
+.stat-label{color:#8b949e}
+.stat-value{color:#d2a8ff;font-weight:bold}
+
+/* Color strip */
+.color-strip{display:flex;height:24px;border-radius:6px;overflow:hidden;margin-bottom:6px;border:1px solid #30363d}
+.cs-cell{flex:1;min-width:8px}
+
+/* Outlier detail */
+.outlier-detail{background:#21262d;border-radius:8px;padding:10px;margin-top:8px;font-size:11px}
+.od-row{display:flex;justify-content:space-between;padding:2px 0}
+.od-label{color:#8b949e}
+.od-val{color:#c9d1d9}
+.od-val .pattern{font-weight:bold;color:#f0883e;font-size:13px;letter-spacing:1px}
+</style>
+</head>
+<body>
+
+<h1>NPUB Outlier Discovery — Anti-Phishing Fingerprint Scanner</h1>
+<div class="sub">No predefined pattern. Scanner finds the most anomalous section automatically. Z-score = statistical surprise.</div>
+
+<!-- CONCEPT -->
+<h2>How It Works</h2>
+<div class="sub" style="max-width:600px">
+1. Scan NPUB at 13 window sizes (3..20 chars) × all positions<br>
+2. For each window, compute Shannon entropy, compare to baseline distribution (20k random NPUBs)<br>
+3. Z-score = how many std-devs below expected entropy. Max z-score = the NPUB's "fingerprint anchor"<br>
+4. Browser highlights the anchor section. User learns to recognize it.
+</div>
+
+<!-- RANDOM NPUB -->
+<h2>Random NPUB — What scanner finds</h2>
+<div class="npub-card">
+  <div class="card-title">RANDOM NPUB</div>
+  <div class="card-desc">No grinding. Scanner finds a weak outlier (z≈1). Not distinctive enough for anti-phishing.</div>
+  
+  <div class="scan-output">
+    <div>
+      <div class="scan-label">NPUB with discovered outlier highlighted:</div>
+      <div class="npub-line" id="npub-random"></div>
+    </div>
+    <div>
+      <div class="scan-label">Outlier z-score:</div>
+      <div class="z-badge z-low">z = 1.09 (WEAK)</div>
+    </div>
+  </div>
+  
+  <div class="outlier-detail" id="detail-random"></div>
+</div>
+
+<!-- GROUND NPUB -->
+<h2>Ground NPUB — After grinding 10,000 keys</h2>
+<div class="npub-card ground">
+  <div class="card-title ground">GROUND NPUB (z = 6.31)</div>
+  <div class="card-desc">Grinding 10k keys finds extreme outlier. 18-char section with only 7 distinct chars. Highly recognizable.</div>
+  
+  <div class="scan-output">
+    <div>
+      <div class="scan-label">NPUB with discovered outlier highlighted:</div>
+      <div class="npub-line" id="npub-ground"></div>
+    </div>
+    <div>
+      <div class="scan-label">Outlier z-score:</div>
+      <div class="z-badge z-extreme">z = 6.31 (EXTREME)</div>
+    </div>
+  </div>
+  
+  <div class="outlier-detail" id="detail-ground"></div>
+</div>
+
+<!-- ATTACKER -->
+<h2>Attacker — Same name, different fingerprint</h2>
+<div class="npub-card attack">
+  <div class="card-title attack">ATTACKER NPUB (z = 5.84)</div>
+  <div class="card-desc">Attacker grinds their own outlier. Similar z-score, but DIFFERENT section, DIFFERENT characters, DIFFERENT visual.</div>
+  
+  <div class="scan-output">
+    <div>
+      <div class="scan-label">Attacker NPUB:</div>
+      <div class="npub-line" id="npub-attacker"></div>
+    </div>
+    <div>
+      <div class="scan-label">Outlier z-score:</div>
+      <div class="z-badge z-high">z = 5.84 (STRONG but DIFFERENT)</div>
+    </div>
+  </div>
+  
+  <div class="outlier-detail" id="detail-attacker"></div>
+</div>
+
+<!-- COMPOSITE FINGERPRINT RADAR -->
+<h2>Composite Fingerprint — Z-scores at all 13 scales</h2>
+<div class="sub">Each NPUB produces a 13-dimensional profile. Same scale = different anomaly = different shape.</div>
+
+<div class="radar-wrap">
+  <div style="text-align:center">
+    <div style="font-size:11px;color:#8b949e;margin-bottom:4px">Random (z≈1)</div>
+    <svg width="200" height="200" id="radar-r"></svg>
+  </div>
+  <div style="text-align:center">
+    <div style="font-size:11px;color:#3fb950;margin-bottom:4px">Ground (z≈6)</div>
+    <svg width="200" height="200" id="radar-g"></svg>
+  </div>
+  <div style="text-align:center">
+    <div style="font-size:11px;color:#f85149;margin-bottom:4px">Attacker (z≈5.8)</div>
+    <svg width="200" height="200" id="radar-a"></svg>
+  </div>
+</div>
+
+<!-- GRINDING COST TABLE -->
+<h2>Grinding Cost vs Outlier Strength</h2>
+<div class="sub">More grinding = stronger fingerprint anchor.</div>
+
+<div style="display:flex;gap:20px;flex-wrap:wrap">
+  <div style="background:#161b22;padding:15px;border-radius:8px;border:1px solid #30363d">
+    <table style="font-size:12px;border-collapse:collapse">
+      <tr style="color:#8b949e"><th style="text-align:left;padding:4px 12px">Keys tried</th><th style="text-align:right;padding:4px 12px">Best z-score</th><th style="text-align:left;padding:4px 12px">Strength</th></tr>
+      <tr><td style="padding:3px 12px;color:#8b949e">10</td><td style="text-align:right;padding:3px 12px">~2.0</td><td style="padding:3px 12px"><span class="z-badge z-mid" style="padding:1px 6px;font-size:10px">weak</span></td></tr>
+      <tr><td style="padding:3px 12px;color:#8b949e">100</td><td style="text-align:right;padding:3px 12px">~3.9</td><td style="padding:3px 12px"><span class="z-badge z-mid" style="padding:1px 6px;font-size:10px">moderate</span></td></tr>
+      <tr><td style="padding:3px 12px;color:#8b949e">1,000</td><td style="text-align:right;padding:3px 12px">~5.0</td><td style="padding:3px 12px"><span class="z-badge z-high" style="padding:1px 6px;font-size:10px">strong</span></td></tr>
+      <tr><td style="padding:3px 12px;color:#8b949e">10,000</td><td style="text-align:right;padding:3px 12px">~6.3</td><td style="padding:3px 12px"><span class="z-badge z-extreme" style="padding:1px 6px;font-size:10px">extreme</span></td></tr>
+      <tr><td style="padding:3px 12px;color:#8b949e">100,000</td><td style="text-align:right;padding:3px 12px">~7.5</td><td style="padding:3px 12px"><span class="z-badge z-extreme" style="padding:1px 6px;font-size:10px">forgery-resistant</span></td></tr>
+    </table>
+  </div>
+  
+  <div style="background:#161b22;padding:15px;border-radius:8px;border:1px solid #30363d;max-width:300px">
+    <div style="font-size:12px;color:#f0883e;font-weight:bold;margin-bottom:8px">Key insight</div>
+    <div style="font-size:11px;color:#c9d1d9;line-height:1.6">
+      Finding ANY extreme outlier: ~10k tries (seconds on laptop)<br><br>
+      Matching a SPECIFIC outlier pattern: millions of times harder<br><br>
+      The z-score IS the proof-of-work. Higher z = more work = stronger visual fingerprint = harder to forge.
+    </div>
+  </div>
+</div>
+
+<!-- WINDOW SIZE DISTRIBUTION -->
+<h2>Which scales produce outliers?</h2>
+<div class="sub">Outliers found at all scales. Short windows (3-6 chars) produce 45% of outliers — even "hhh" is statistically surprising.</div>
+
+<div id="window-chart" style="margin:10px 0"></div>
+
+</body>
+
+<script>
+const BECH32 = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+const COLORS = {
+  'q':'#ff6b6b','p':'#4ecdc4','z':'#45b7d1','r':'#f9ca24','y':'#6c5ce7','9':'#a29bfe',
+  'x':'#fd79a8','8':'#fdcb6e','g':'#6ab04c','f':'#badc58','2':'#00b894','t':'#00cec9',
+  'v':'#0984e3','d':'#6c5ce7','w':'#e17055','0':'#dfe6e9','s':'#2d3436','3':'#fab1a0',
+  'j':'#74b9ff','n':'#a29bfe','5':'#55efc4','4':'#81ecec','k':'#ffeaa7','h':'#dfe6e9',
+  'c':'#b2bec3','e':'#636e72','6':'#2d3436','m':'#e84393','u':'#fd79a8','a':'#e17055','7':'#00b894','l':'#0984e3'
+};
+
+// Simulated data from our Python analysis
+const samples = {
+  random: {
+    npub: 'qpzry9x8gf2tvdw0s3jn54khce6mua7lqpzry9x8gf2tvdw0s3jn54khceu7l',
+    outlier: {pos: 27, w: 5, entropy: 1.37, z: 1.09, pattern: 'duedd'},
+    fp: [-0.1,-0.6,0.5,0.0,-0.5,-1.0,-0.1,-0.6,-0.3,-0.2,-0.1,-0.8,-0.8]
+  },
+  ground: {
+    npub: 'qpzry9x8gf2tvdw0apxjawjapqajj2axaj3jn54khce6mua7lqpzry9x8gf2tvd',
+    outlier: {pos: 15, w: 18, entropy: 2.44, z: 6.31, pattern: 'apxjawjapqajj2axaj'},
+    fp: [3.9,2.0,1.1,0.5,0.0,-0.5,-0.9,-0.1,-0.9,-0.4,0.2,6.3,0.4],
+    vanity: {pos: 15, len: 8, text: 'apxjawja'}
+  },
+  attacker: {
+    npub: 'qpzry9x8gf2tvdw0s3jn54khce6mmamemeshmatesmeshmlqpzry9x8gf2tvdw',
+    outlier: {pos: 31, w: 16, entropy: 2.50, z: 5.84, pattern: 'smeshmatesmeshml'},
+    fp: [-0.1,1.3,0.5,0.0,-0.5,0.4,-0.1,-0.1,-0.9,-0.2,5.8,0.7,0.9],
+    vanity: {pos: 37, len: 8, text: 'meshmate'}
+  }
+};
+
+function renderNPUB(id, data) {
+  const el = document.getElementById(id);
+  const d = data.npub;
+  let html = 'npub1';
+  for (let i = 0; i < d.length; i++) {
+    const inOutlier = i >= data.outlier.pos && i < data.outlier.pos + data.outlier.w;
+    const inVanity = data.vanity && i >= data.vanity.pos && i < data.vanity.pos + data.vanity.len;
+    if (inVanity) {
+      html += `<span class="vanity">${d[i]}</span>`;
+    } else if (inOutlier) {
+      html += `<span class="outlier">${d[i]}</span>`;
+    } else {
+      html += `<span class="normal">${d[i]}</span>`;
+    }
+  }
+  el.innerHTML = html;
+}
+
+function renderDetail(id, data) {
+  const el = document.getElementById(id);
+  const o = data.outlier;
+  let html = '<div class="stats-grid">';
+  html += `<div class="od-row"><span class="od-label">Window size</span><span class="od-val">${o.w} chars</span></div>`;
+  html += `<div class="od-row"><span class="od-label">Position</span><span class="od-val">char ${o.pos}-${o.pos+o.w-1}</span></div>`;
+  html += `<div class="od-row"><span class="od-label">Entropy</span><span class="od-val">${o.entropy.toFixed(2)} bits/char</span></div>`;
+  html += `<div class="od-row"><span class="od-label">Distinct chars</span><span class="od-val">${new Set(o.pattern).size} of 32</span></div>`;
+  html += `<div class="od-row"><span class="od-label">Z-score</span><span class="od-val">${o.z.toFixed(2)}σ below expected</span></div>`;
+  html += '</div>';
+  html += `<div style="margin-top:8px"><span class="od-label">Pattern: </span><span class="pattern">${o.pattern}</span></div>`;
+  
+  // Color strip of the outlier
+  html += '<div style="margin-top:8px"><div class="scan-label">Color fingerprint:</div><div class="color-strip">';
+  for (const ch of o.pattern) {
+    html += `<div class="cs-cell" style="background:${COLORS[ch]}"></div>`;
+  }
+  html += '</div></div>';
+  
+  el.innerHTML = html;
+}
+
+renderNPUB('npub-random', samples.random);
+renderDetail('detail-random', samples.random);
+
+renderNPUB('npub-ground', samples.ground);
+renderDetail('detail-ground', samples.ground);
+
+renderNPUB('npub-attacker', samples.attacker);
+renderDetail('detail-attacker', samples.attacker);
+
+// === RADAR CHARTS ===
+const SCALE_LABELS = ['3','4','5','6','7','8','9','10','12','14','16','18','20'];
+
+function drawRadar(id, fp, color) {
+  const svg = document.getElementById(id);
+  const cx = 100, cy = 100, maxR = 70;
+  const n = fp.length;
+  let html = '';
+  
+  // Background circles
+  for (const r of [20, 40, 60]) {
+    html += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#30363d" stroke-width="0.5"/>`;
+  }
+  // Axes
+  for (let i = 0; i < n; i++) {
+    const angle = (i / n) * 2 * Math.PI - Math.PI / 2;
+    const x2 = cx + Math.cos(angle) * maxR;
+    const y2 = cy + Math.sin(angle) * maxR;
+    html += `<line x1="${cx}" y1="${cy}" x2="${x2}" y2="${y2}" stroke="#30363d" stroke-width="0.5"/>`;
+  }
+  
+  // Data polygon
+  let points = '';
+  for (let i = 0; i < n; i++) {
+    const angle = (i / n) * 2 * Math.PI - Math.PI / 2;
+    const r = Math.max(0, Math.min(maxR, (fp[i] / 8) * maxR));
+    const x = cx + Math.cos(angle) * r;
+    const y = cy + Math.sin(angle) * r;
+    points += `${x},${y} `;
+  }
+  html += `<polygon points="${points.trim()}" fill="${color}33" stroke="${color}" stroke-width="1.5"/>`;
+  
+  // Data points
+  for (let i = 0; i < n; i++) {
+    const angle = (i / n) * 2 * Math.PI - Math.PI / 2;
+    const r = Math.max(0, Math.min(maxR, (fp[i] / 8) * maxR));
+    const x = cx + Math.cos(angle) * r;
+    const y = cy + Math.sin(angle) * r;
+    html += `<circle cx="${x}" cy="${y}" r="2" fill="${color}"/>`;
+  }
+  
+  // Scale labels
+  for (let i = 0; i < n; i++) {
+    const angle = (i / n) * 2 * Math.PI - Math.PI / 2;
+    const x = cx + Math.cos(angle) * (maxR + 12);
+    const y = cy + Math.sin(angle) * (maxR + 12) + 3;
+    html += `<text x="${x}" y="${y}" fill="#484f58" font-size="7" text-anchor="middle">w${SCALE_LABELS[i]}</text>`;
+  }
+  
+  svg.innerHTML = html;
+}
+
+drawRadar('radar-r', samples.random.fp, '#8b949e');
+drawRadar('radar-g', samples.ground.fp, '#3fb950');
+drawRadar('radar-a', samples.attacker.fp, '#f85149');
+
+// === WINDOW SIZE CHART ===
+const windowData = [
+  [3,12.6],[4,11.1],[5,10.9],[6,10.6],[7,6.4],[8,6.2],[9,5.7],[10,5.1],
+  [12,5.9],[14,5.1],[16,6.2],[18,5.7],[20,8.5]
+];
+let whtml = '<div style="display:flex;align-items:flex-end;gap:2px;height:100px;margin:10px 0">';
+for (const [w, pct] of windowData) {
+  const h = pct * 4;
+  whtml += `<div style="display:flex;flex-direction:column;align-items:center;flex:1">
+    <div style="width:100%;max-width:40px;height:${h}px;background:linear-gradient(180deg,#f0883e,#dfe6e9);border-radius:3px 3px 0 0"></div>
+    <div style="font-size:9px;color:#8b949e;margin-top:3px">w${w}</div>
+    <div style="font-size:8px;color:#484f58">${pct}%</div>
+  </div>`;
+}
+whtml += '</div>';
+document.getElementById('window-chart').innerHTML = whtml;
+</script>
+</html>

@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0d1117;color:#c9d1d9;font-family:'SF Mono',monospace;padding:20px}
+h1{color:#58a6ff;font-size:16px;margin-bottom:3px}
+h2{color:#f0883e;font-size:14px;margin-top:20px;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #30363d}
+.sub{color:#8b949e;font-size:12px;margin-bottom:15px}
+
+.card{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:16px;margin-bottom:15px}
+.card.attack{border-color:#f85149}
+
+/* Two-tone NPUB display */
+.npub-display{font-family:monospace;font-size:14px;word-break:break-all;line-height:2.2;margin:10px 0;padding:12px;background:#21262d;border-radius:8px}
+.npub-display .prefix{color:#484f58}
+.npub-display .vanity-char{background:#3fb95033;border-radius:3px;padding:2px 1px;font-weight:bold;color:#3fb950;text-shadow:0 0 4px #3fb95044}
+.npub-display .antiphish-char{background:#f0883e22;border-radius:3px;padding:2px 1px;font-weight:bold;color:#f0883e;text-shadow:0 0 4px #f0883e44}
+.npub-display .normal{color:#484f58}
+
+/* Color strips for palette comparison */
+.palette-strip{display:flex;gap:2px;margin:8px 0}
+.palette-cell{width:24px;height:24px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;color:rgba(255,255,255,0.8)}
+
+/* Labels */
+.zone-label{font-size:11px;margin-bottom:4px;font-weight:bold}
+.zone-vanity{color:#3fb950}
+.zone-antiphish{color:#f0883e}
+
+/* Comparison */
+.compare-row{display:flex;gap:20px;flex-wrap:wrap;margin:10px 0}
+.compare-col{flex:1;min-width:300px}
+
+.stats{font-size:11px;color:#8b949e;margin-top:8px}
+.stats span{color:#d2a8ff;font-weight:bold}
+</style>
+</head>
+<body>
+
+<h1>SPLIT APPROACH: Vanity Zone + Anti-Phish Zone</h1>
+<div class="sub">Two independent sections with DIFFERENT char palettes. Vanity is readable, anti-phish is unforgeable. Visual contrast is free.</div>
+
+<h2>The Concept</h2>
+<div class="card">
+<div style="font-size:13px;line-height:1.8;color:#c9d1d9">
+<b style="color:#3fb950">GREEN ZONE</b> = vanity name "meshmate" — uses chars {m,e,s,h,a,t}<br>
+<b style="color:#f0883e">ORANGE ZONE</b> = anti-phish fingerprint — uses ONLY other chars {q,p,z,r,y,...}<br><br>
+Two completely different color palettes. Human eye separates them instantly.<br>
+Attacker must match BOTH zones simultaneously: exponentially harder than either alone.
+</div>
+</div>
+
+<h2>Alice's NPUB — The Real Thing</h2>
+<div class="card">
+<div class="zone-label zone-vanity">VANITY ZONE (green)</div>
+<div class="palette-strip">
+<div class="palette-cell" style="background:#e84393">m</div>
+<div class="palette-cell" style="background:#636e72">e</div>
+<div class="palette-cell" style="background:#2d3436">s</div>
+<div class="palette-cell" style="background:#dfe6e9">h</div>
+<div class="palette-cell" style="background:#e84393">m</div>
+<div class="palette-cell" style="background:#e17055">a</div>
+<div class="palette-cell" style="background:#00cec9">t</div>
+<div class="palette-cell" style="background:#636e72">e</div>
+</div>
+
+<div class="zone-label zone-antiphish">ANTI-PHISH ZONE (orange)</div>
+<div class="palette-strip">
+<div class="palette-cell" style="background:#ff6b6b">q</div>
+<div class="palette-cell" style="background:#4ecdc4">p</div>
+<div class="palette-cell" style="background:#ff6b6b">q</div>
+<div class="palette-cell" style="background:#4ecdc4">p</div>
+<div class="palette-cell" style="background:#ff6b6b">q</div>
+<div class="palette-cell" style="background:#4ecdc4">p</div>
+<div class="palette-cell" style="background:#ff6b6b">q</div>
+<div class="palette-cell" style="background:#4ecdc4">p</div>
+<div class="palette-cell" style="background:#ff6b6b">q</div>
+<div class="palette-cell" style="background:#4ecdc4">p</div>
+<div class="palette-cell" style="background:#ff6b6b">q</div>
+<div class="palette-cell" style="background:#4ecdc4">p</div>
+</div>
+
+<div style="margin:12px 0;font-size:11px;color:#8b949e">Full NPUB with both zones highlighted:</div>
+<div class="npub-display" id="alice-npub"></div>
+
+<div class="stats">
+Cost to create: <span>~2^37 keys</span> (vanity grind only, outlier is free) |
+Attacker to replicate: <span>>>2^60</span> (match both zones exactly) |
+Asymmetry: <span>>>1,000,000:1</span>
+</div>
+</div>
+
+<h2>Attacker's NPUB — Same Name, Different Fingerprint</h2>
+<div class="card attack">
+<div class="zone-label zone-vanity">VANITY ZONE — matches Alice ✓</div>
+<div class="palette-strip">
+<div class="palette-cell" style="background:#e84393">m</div>
+<div class="palette-cell" style="background:#636e72">e</div>
+<div class="palette-cell" style="background:#2d3436">s</div>
+<div class="palette-cell" style="background:#dfe6e9">h</div>
+<div class="palette-cell" style="background:#e84393">m</div>
+<div class="palette-cell" style="background:#e17055">a</div>
+<div class="palette-cell" style="background:#00cec9">t</div>
+<div class="palette-cell" style="background:#636e72">e</div>
+</div>
+
+<div class="zone-label zone-antiphish" style="color:#f85149">ANTI-PHISH ZONE — DIFFERENT from Alice ✗</div>
+<div class="palette-strip">
+<div class="palette-cell" style="background:#45b7d1">z</div>
+<div class="palette-cell" style="background:#f9ca24">r</div>
+<div class="palette-cell" style="background:#45b7d1">z</div>
+<div class="palette-cell" style="background:#f9ca24">r</div>
+<div class="palette-cell" style="background:#45b7d1">z</div>
+<div class="palette-cell" style="background:#f9ca24">r</div>
+<div class="palette-cell" style="background:#45b7d1">z</div>
+<div class="palette-cell" style="background:#f9ca24">r</div>
+<div class="palette-cell" style="background:#45b7d1">z</div>
+<div class="palette-cell" style="background:#f9ca24">r</div>
+<div class="palette-cell" style="background:#45b7d1">z</div>
+<div class="palette-cell" style="background:#f9ca24">r</div>
+</div>
+
+<div style="margin:12px 0;font-size:11px;color:#8b949e">Full NPUB:</div>
+<div class="npub-display" id="attacker-npub"></div>
+
+<div class="stats">
+Name matches: <span style="color:#3fb950">YES</span> |
+Fingerprint matches: <span style="color:#f85149">NO — wrong chars, wrong position</span> |
+Phishing: <span style="color:#3fb950">DETECTED by visual mismatch</span>
+</div>
+</div>
+
+<h2>Side-by-Side: Why The Split Works</h2>
+<div class="compare-row">
+<div class="compare-col">
+<div class="card">
+<div style="font-size:13px;font-weight:bold;color:#f0883e;margin-bottom:10px">COMBINED (old idea)</div>
+<div class="npub-display" style="font-size:12px">
+<span class="prefix">npub1</span><span class="vanity-char">m</span><span class="vanity-char">e</span><span class="vanity-char">s</span><span class="vanity-char">h</span><span class="vanity-char">m</span><span class="vanity-char">a</span><span class="vanity-char">t</span><span class="vanity-char">e</span><span class="vanity-char">m</span><span class="vanity-char">e</span><span class="vanity-char">s</span><span class="vanity-char">h</span><span class="vanity-char">a</span><span class="vanity-char">t</span><span class="vanity-char">m</span><span class="vanity-char">e</span><span class="normal">qpzry9x8gf2tvdw0s3jn54khce6mua7lqpzry9x8gf2tvdw0</span>
+</div>
+<div style="font-size:11px;color:#f85149;margin-top:8px">
+✗ meshmate blends into surrounding low-ent chars<br>
+✗ Same palette = can't visually separate zones<br>
+✗ Harder to spot attacker (colors look similar)
+</div>
+</div>
+</div>
+
+<div class="compare-col">
+<div class="card" style="border-color:#3fb950">
+<div style="font-size:13px;font-weight:bold;color:#3fb950;margin-bottom:10px">SPLIT (new idea)</div>
+<div class="npub-display" style="font-size:12px">
+<span class="prefix">npub1</span><span class="vanity-char">m</span><span class="vanity-char">e</span><span class="vanity-char">s</span><span class="vanity-char">h</span><span class="vanity-char">m</span><span class="vanity-char">a</span><span class="vanity-char">t</span><span class="vanity-char">e</span><span class="normal">qpzry9x8gf2tvdw0</span><span class="antiphish-char">q</span><span class="antiphish-char">p</span><span class="antiphish-char">q</span><span class="antiphish-char">p</span><span class="antiphish-char">q</span><span class="antiphish-char">p</span><span class="antiphish-char">q</span><span class="antiphish-char">p</span><span class="antiphish-char">q</span><span class="antiphish-char">p</span><span class="antiphish-char">q</span><span class="antiphish-char">p</span><span class="normal">s3jn54khce6mua7lqpzry9x8gf2</span>
+</div>
+<div style="font-size:11px;color:#3fb950;margin-top:8px">
+✓ meshmate POPS — surrounded by different colors<br>
+✓ Two distinct palettes = instant visual separation<br>
+✓ Attacker's different fingerprint is OBVIOUS
+</div>
+</div>
+</div>
+</div>
+
+<h2>Grinding Strategy: Sequential, Not Simultaneous</h2>
+<div class="card">
+<div style="font-size:13px;line-height:2;color:#c9d1d9">
+<b style="color:#58a6ff">Step 1:</b> Grind for "meshmate" prefix (~2^37 keys, few hours on laptop)<br>
+<b style="color:#3fb950">Step 2:</b> Among those keys, run outlier scanner on each<br>
+<b style="color:#f0883e">Step 3:</b> Pick the key with strongest outlier in complement charset<br><br>
+<span style="color:#8b949e">The outlier is DISCOVERED, not constrained. Alice accepts millions of different valid patterns. Attacker must replicate ONE. That's the asymmetry.</span><br><br>
+<span style="color:#d2a8ff">Total cost: ~2^37 (just the vanity grind). Outlier is free.</span><br>
+<span style="color:#f85149">Attacker cost: must match exact outlier = astronomically higher.</span>
+</div>
+</div>
+
+</body>
+<script>
+// Generate realistic-looking NPUBs for display
+function fillNPUB(id, vanityText, vanityPos, antiphishPattern, antiphishPos) {
+  const B32 = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+  let data = [];
+  for(let i=0;i<58;i++) data.push(B32[Math.floor(Math.random()*32)]);
+  
+  // Insert vanity
+  for(let i=0;i<vanityText.length;i++) data[vanityPos+i] = vanityText[i];
+  // Insert antiphish pattern
+  for(let i=0;i<antiphishPattern.length;i++) data[antiphishPos+i] = antiphishPattern[i];
+  
+  let html = '<span class="prefix">npub1</span>';
+  for(let i=0;i<58;i++) {
+    const inVanity = i>=vanityPos && i<vanityPos+vanityText.length;
+    const inAP = i>=antiphishPos && i<antiphishPos+antiphishPattern.length;
+    if(inVanity) html += `<span class="vanity-char">${data[i]}</span>`;
+    else if(inAP) html += `<span class="antiphish-char">${data[i]}</span>`;
+    else html += `<span class="normal">${data[i]}</span>`;
+  }
+  document.getElementById(id).innerHTML = html;
+}
+
+fillNPUB('alice-npub', 'meshmate', 0, 'qpqpqpqpqpqp', 25);
+fillNPUB('attacker-npub', 'meshmate', 0, 'rzrzrzrzrzrz', 30);
+</script>
+</html>
