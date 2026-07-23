@@ -1,0 +1,87 @@
+# =============================================================================
+# docker-compose.yml — VNAAS Grinder Server
+#
+# Two services:
+#   vnaas-cpu  — CPU-only deployment (Node 20 + rana, no GPU)
+#   vnaas-gpu  — GPU deployment (CUDA + Node 20 + GPU binary + rana)
+#
+# Usage:
+#   CPU only:  docker compose --profile cpu up -d
+#   GPU:       docker compose --profile gpu up -d
+#
+# Environment:
+#   Copy server/.env.example to server/.env and fill in your values.
+#   Both services read from the same .env file via env_file.
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # CPU-only deployment
+  # ---------------------------------------------------------------------------
+  vnaas-cpu:
+    profiles: ["cpu"]
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.cpu
+    image: vnaas-grinder:cpu
+    container_name: vnaas-grinder-cpu
+    restart: unless-stopped
+    env_file:
+      - ../server/.env
+    environment:
+      - VNAAS_ENABLE_GPU=false
+      - VNAAS_ENABLE_RANA=true
+    ports:
+      - "3000:3000"
+    volumes:
+      # Mount rana binary if not baked into the image
+      - ../server/bin/rana:/app/server/bin/rana:ro
+    networks:
+      - vnaas-net
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+  # ---------------------------------------------------------------------------
+  # GPU deployment (requires nvidia-docker runtime)
+  # ---------------------------------------------------------------------------
+  vnaas-gpu:
+    profiles: ["gpu"]
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.gpu
+    image: vnaas-grinder:gpu
+    container_name: vnaas-grinder-gpu
+    restart: unless-stopped
+    env_file:
+      - ../server/.env
+    environment:
+      - VNAAS_ENABLE_GPU=true
+      - VNAAS_ENABLE_RANA=true
+    ports:
+      - "3001:3000"
+    volumes:
+      # Mount rana binary if not baked into the image
+      - ../server/bin/rana:/app/server/bin/rana:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    networks:
+      - vnaas-net
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+
+networks:
+  vnaas-net:
+    driver: bridge

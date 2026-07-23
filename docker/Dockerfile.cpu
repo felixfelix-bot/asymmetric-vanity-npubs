@@ -1,0 +1,82 @@
+# =============================================================================
+# Dockerfile.cpu — VNAAS Grinder Server (CPU-only, no GPU)
+#
+# Node.js 20 + pre-built rana binary. No CUDA, no GPU support.
+# The server will auto-detect available backends at runtime and fall back
+# to browser-side grinding instructions if neither GPU nor rana is found.
+#
+# Build:
+#   docker build -f docker/Dockerfile.cpu -t vnaas-grinder:cpu .
+#
+# Run:
+#   docker run --env-file server/.env vnaas-grinder:cpu
+# =============================================================================
+
+FROM node:20-slim AS base
+
+WORKDIR /app
+
+# Install system dependencies needed by rana (libssl) and native npm modules
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    pkg-config \
+    libssl-dev \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# -----------------------------------------------------------------------------
+# Stage 1: Build the TypeScript server
+# -----------------------------------------------------------------------------
+FROM base AS builder
+
+# Copy package files first for layer caching
+COPY server/package.json server/package-lock.json* ./server/
+
+WORKDIR /app/server
+RUN npm ci
+
+# Copy server source and build
+COPY server/tsconfig.json ./
+COPY server/src/ ./src/
+RUN npm run build
+
+# -----------------------------------------------------------------------------
+# Stage 2: Production image
+# -----------------------------------------------------------------------------
+FROM base AS production
+
+WORKDIR /app/server
+
+# Copy built server
+COPY --from=builder /app/server/dist ./dist
+COPY --from=builder /app/server/node_modules ./node_modules
+COPY server/package.json ./
+
+# Copy rana binary (must be pre-built for linux/amd64)
+# Place it at server/bin/rana before building the Docker image:
+#   cp rana-fork/target/release/rana server/bin/rana
+COPY server/bin/rana ./bin/rana
+RUN chmod +x ./bin/rana
+
+# Default environment (override with --env-file or -e flags)
+ENV VNAAS_RANA_BINARY_PATH=/app/server/bin/rana
+ENV VNAAS_GPU_BINARY_PATH=cuda_vanity
+ENV VNAAS_ENABLE_GPU=false
+ENV VNAAS_ENABLE_RANA=true
+ENV VNAAS_ENABLE_BROWSER_FALLBACK=true
+ENV VNAAS_ENABLE_PAYMENTS=false
+ENV VNAAS_LN_BACKEND=none
+ENV VNAAS_CASHU_MINT_URL=https://mint.minibits.cash
+ENV VNAAS_FREE_THRESHOLD=8
+ENV VNAAS_SATS_PER_BIT=10
+ENV VNAAS_RELAYS=wss://relay.damus.io,wss://nos.lol
+ENV NODE_ENV=production
+
+# Expose optional HTTP health endpoint
+EXPOSE 3000
+
+# Health check (optional HTTP endpoint)
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD node -e "fetch('http://localhost:3000/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))"
+
+CMD ["node", "dist/index.js"]
