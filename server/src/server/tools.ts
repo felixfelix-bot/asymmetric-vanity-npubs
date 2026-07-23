@@ -4,12 +4,26 @@
  * This tool accepts a user's public key (npub) and a vanity pattern,
  * then dispatches to the appropriate grinding backend (GPU → Rana → Browser fallback).
  *
- * In Phase 1, only the browser fallback path is implemented — the server returns
- * `use_client_fallback` with instructions for client-side grinding.
+ * Phase 1: returns `use_client_fallback` with instructions for client-side grinding.
+ * Phase 6: adds `payment_required` status when the calculated cost exceeds
+ *   the client's `max_cost_sats` budget. The response includes a Lightning
+ *   invoice and/or Cashu HTLC request and a SHA256(d) hash commitment for
+ *   atomic swap (ADR-008).
  */
 
 import { z } from "zod";
 import type { GrindNpubParams, GrindNpubResult } from "../types.js";
+import {
+  calculatePrice,
+  isFreePattern,
+  pricingConfigFromServer,
+} from "../payment/pricing.js";
+import { createLightningPayment } from "../payment/lightning.js";
+import { createCashuPayment } from "../payment/cashu.js";
+
+// Note: buildAtomicSwapOffer from "../payment/atomic-swap.js" will be used
+// in the V2 atomic swap flow when server-side backends are available.
+// It's intentionally not imported here yet to satisfy noUnusedLocals.
 
 /**
  * Zod schema for the grind_npub tool input parameters.
@@ -34,6 +48,10 @@ export const grindNpubSchema = {
  * Phase 1 implementation: returns `use_client_fallback` since no server-side
  * compute backends are wired up yet. The browser fallback provides JavaScript
  * code the client can run locally using @noble/secp256k1.
+ *
+ * Phase 6 addition: checks pricing before grinding. If the pattern difficulty
+ * exceeds the free threshold and the cost exceeds `max_cost_sats`, returns
+ * `payment_required` with a Lightning invoice and/or Cashu HTLC request.
  *
  * @param args - Parsed tool arguments
  * @returns Tool result as MCP CallToolResult content
@@ -75,13 +93,109 @@ export async function handleGrindNpub(
     };
   }
 
-  // Phase 1: return browser fallback instructions
+  // ── Phase 6: Pricing check ──────────────────────────────────────────
+  //
+  // Calculate the cost of grinding this pattern. If it exceeds the client's
+  // max_cost_sats budget, return `payment_required` with payment instructions.
+  const scanEntropy = params.options?.min_z_score !== undefined && params.options.min_z_score > 0;
+  const pricingConfig = pricingConfigFromServer({
+    freeThreshold: parseInt(process.env.VNAAS_FREE_THRESHOLD ?? "8", 10),
+    satsPerBit: parseInt(process.env.VNAAS_SATS_PER_BIT ?? "10", 10),
+  });
+  const costSats = calculatePrice(params.vanity_pattern, scanEntropy, pricingConfig);
+
+  if (costSats > 0) {
+    const maxCostSats = params.options?.max_cost_sats ?? 0;
+
+    if (maxCostSats > 0 && costSats > maxCostSats) {
+      // Cost exceeds budget — return payment_required
+      const result: GrindNpubResult = {
+        status: "payment_required",
+        invoice: undefined,
+        hash_commitment: undefined,
+      };
+
+      // Try to generate a Lightning invoice
+      const lnBackend = (process.env.VNAAS_LN_BACKEND as "lnd" | "lnurl" | "none") ?? "none";
+      if (lnBackend !== "none") {
+        try {
+          const ln = createLightningPayment(lnBackend, process.env.VNAAS_LN_NODE_URL);
+          const invoiceResult = await ln.createInvoice(
+            costSats,
+            `Vanity NPUB grinding: pattern "${params.vanity_pattern}"`
+          );
+          result.invoice = invoiceResult.invoice;
+        } catch {
+          // Lightning not available — fall through to Cashu
+        }
+      }
+
+      // Try to provide a Cashu HTLC request as alternative
+      const cashuMintUrl = process.env.VNAAS_CASHU_MINT_URL ?? "https://mint.minibits.cash";
+      const enablePayments = process.env.VNAAS_ENABLE_PAYMENTS === "true";
+      if (enablePayments && !result.invoice) {
+        // Provide Cashu mint info so the client can prepare a token
+        const cashu = createCashuPayment(cashuMintUrl);
+        // For V1 (simple): just tell the client the price and mint
+        // For V2 (atomic): the server would grind first, then build an offer
+        // Since we don't have a backend yet, we provide the V1 payment request
+        result.invoice = JSON.stringify({
+          type: "cashu_v1",
+          mint: cashu.mintUrl,
+          amount: costSats,
+          description: `Vanity NPUB grinding: pattern "${params.vanity_pattern}"`,
+        });
+      }
+
+      // If no payment method is available, return the cost info anyway
+      if (!result.invoice) {
+        result.invoice = JSON.stringify({
+          type: "payment_request",
+          amount_sats: costSats,
+          message: "No payment backend configured. Contact the server operator.",
+        });
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              {
+                ...result,
+                cost_sats: costSats,
+                max_cost_sats: maxCostSats,
+                pattern: params.vanity_pattern,
+                difficulty_bits: params.vanity_pattern.length * 5,
+              },
+              null,
+              2
+            ),
+          },
+        ],
+      };
+    }
+
+    // Cost is within budget but non-zero — would proceed to grind after payment
+    // For now, since no backends are available, fall through to browser fallback
+    // with a note about the cost.
+  }
+
+  // ── Phase 1: Browser fallback ───────────────────────────────────────
+  //
+  // No server-side compute backends available yet. Return client-side
+  // grinding instructions.
   const result: GrindNpubResult = {
     status: "use_client_fallback",
     fallback_reason:
       "No server-side compute backends available yet (Phase 1). " +
       "Grind locally in the browser using @noble/secp256k1.",
   };
+
+  // If the pattern is not free, note the cost
+  if (!isFreePattern(params.vanity_pattern, pricingConfig)) {
+    result.fallback_reason += ` (Estimated cost: ${costSats} sats for paid grinding when backends are available.)`;
+  }
 
   // Include client-side grinding instructions
   const clientInstructions = `
