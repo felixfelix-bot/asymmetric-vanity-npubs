@@ -1,0 +1,27 @@
+{
+  "name": "vanaas-grinder-server",
+  "version": "0.1.0",
+  "description": "ContextVM MCP server for vanity NPUB offset grinding over Nostr",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@contextvm/sdk": "^0.13.10",
+    "@contextvm/mcp-sdk": "^1.30.0",
+    "@noble/secp256k1": "^2.2.3",
+    "@noble/hashes": "^2.2.0",
+    "nostr-tools": "^2.23.9",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}
