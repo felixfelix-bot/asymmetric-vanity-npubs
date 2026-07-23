@@ -5,3 +5,7 @@ __pycache__/
 .DS_Store
 node_modules/
 dist/
+server/node_modules/
+server/dist/
+rana-fork/target/
+rana-fork/.secret-patterns.txt

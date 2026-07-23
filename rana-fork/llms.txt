@@ -1,0 +1,26 @@
+# rana
+
+> Mine public keys that can be used with nostr.
+
+Project orientation for LLMs (see https://llmstxt.org/). Cross-link: AGENTS.md (workflow rules), HANDOVER.md (session state).
+
+## Stack
+
+Languages/build: Rust.
+
+## Structure (top file types)
+
+- `.rs`: 7 files
+- `.md`: 2 files
+- `.yml`: 1 files
+- `.gitignore`: 1 files
+- `.lock`: 1 files
+- `.toml`: 1 files
+
+## Build & test
+
+- Inspect `Makefile` / `package.json` / `Cargo.toml` / `platformio.ini` for the canonical commands.
+
+## Optional
+
+- [README](./README.md): human readme

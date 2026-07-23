@@ -37,7 +37,7 @@ export interface GrindNpubParams {
  */
 export interface GrindNpubResult {
   /** Outcome status */
-  status: "found" | "timeout" | "payment_required" | "use_client_fallback";
+  status: "found" | "timeout" | "payment_required" | "use_client_fallback" | "error";
 
   // --- When status === "found" ---
   /** The offset integer d (as decimal string, can be very large) */
