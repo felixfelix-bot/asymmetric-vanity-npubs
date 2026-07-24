@@ -729,16 +729,16 @@
     <h2>The Problem: No Asymmetry</h2>
     <p>Here are two keypairs, both with "<span style="color:var(--green)">sat</span>" in their NPUB. Anyone can make these. There's no way to tell them apart.</p>
     
-    <h3 style="color:var(--header);font-size:18px;margin-top:24px;margin-bottom:8px;">Understanding the Metrics</h3>
-    <p>While we mine, here's how the scanner will evaluate each candidate. We use <strong>three complementary metrics</strong>: <strong>unique character count</strong> (diversity — how many distinct characters appear), <strong>max frequency</strong> (raindrop — how many times the most common character repeats), and <strong>Shannon entropy</strong> (distribution — how uneven the character distribution is). Combined quality = max(rarity_unique, rarity_max, rarity_entropy) — the best of any metric.</p>
+    <h3 style="color:var(--header);font-size:18px;margin-top:24px;margin-bottom:8px;">Understanding the Metric</h3>
+    <p>While we mine, here's how the scanner will evaluate each candidate. The metric is <strong>unique character count</strong> — how many distinct bech32 characters appear in a 16-character window. Fewer unique chars = more recognizable pattern.</p>
 
     <div class="metrics-with-bar">
     <div class="metrics-content">
 
     <div class="metric-card">
-      <h3>Unique Characters: The Diversity Metric</h3>
-      <p>The <strong>unique character count</strong> measures how many distinct bech32 characters appear in a window. Fewer unique chars = more recognizable "low-diversity" pattern.</p>
-      <div class="metric-formula">rarity_unique = expectedUnique − uniqueChars (higher = rarer = better)</div>
+      <h3>Unique Characters: The Raindrop Metric</h3>
+      <p>The <strong>unique character count</strong> measures how many distinct bech32 characters appear in a window. Fewer unique chars = bigger blocks of the same color = more recognizable to humans.</p>
+      <div class="metric-formula">rarity = expectedUnique − uniqueChars (higher = rarer = better)</div>
       <p>A 16-character window with only <strong>3 unique characters</strong> looks like:</p>
       <div class="metric-visual">
         <div class="mini-grid">[p][p][q][p]<br>[p][q][q][p]<br>[q][p][p][q]<br>[p][q][p][p]</div>
@@ -747,7 +747,7 @@
       <div class="metric-visual">
         <div class="mini-grid">[7][k][2][x]<br>[m][v][0][z]<br>[3][r][5][k]<br>[8][j][q][n]</div>
       </div>
-      <p>Same window size. But one is <strong>instantly recognizable</strong> and the other looks like noise. Fewer unique characters = bigger blocks of the same color = more recognizable to humans.</p>
+      <p>Same window size. But one is <strong>instantly recognizable</strong> and the other looks like noise.</p>
       <div class="metric-example">
         <strong>Occupancy problem — expected unique chars in random windows:</strong><br>
         For a window of W chars from a 32-char alphabet, E[unique] = 32 × (1 − (31/32)^W)<br>
@@ -761,62 +761,6 @@
         <strong>rarity < 0</strong> = more unique than expected (not useful for fingerprinting)
       </div>
     </div>
-
-    <div class="metric-card">
-      <h3>Max Frequency: The Raindrop Metric</h3>
-      <p>The <strong>max frequency</strong> measures how many times the <em>most common</em> character repeats in a window. A big "raindrop" of one character is visually striking.</p>
-      <div class="metric-formula">rarity_max = max_freq − expected_max_freq (higher = rarer = better)</div>
-      <p>For W=16: E[max_freq] ≈ <strong>3.08</strong> (from Monte Carlo simulation, 5M samples). A window where one character appears 8 times is a big visual cluster — max_freq=8, rarity_max = 8 − 3.08 = <strong>4.92</strong>.</p>
-      <div class="metric-example">
-        <strong>"a3a2aaaa5a7aa9a"</strong> → max_freq=8 (char 'a' appears 8 times) → rarity_max = 4.92 → very recognizable<br>
-        <strong>"7da6b6a3eb923ab0"</strong> → max_freq=3 (normal) → rarity_max ≈ 0 → looks like noise<br>
-        <br>
-        <strong>rarity_max > 0</strong> = bigger raindrop than expected = recognizable<br>
-        <strong>rarity_max ≈ 0</strong> = normal random (max_freq ≈ 3 for W=16)
-      </div>
-      <p>Max frequency catches "one big raindrop" patterns: a window like "aaaaaaaaa1234567" has max_freq=9 (one char dominates) even though unique=8 looks normal. Diversity alone would miss this.</p>
-    </div>
-
-    <div class="metric-card">
-      <h3>Shannon Entropy: The Distribution Metric</h3>
-      <p>How uneven is the character distribution? Random windows have H≈3.2 bits. Lower = more uneven = more recognizable. Catches patterns like 'aaabbcdeeff12345' where no single char dominates but the distribution is still skewed.</p>
-      <div class="metric-formula">rarity_entropy = expected_entropy − shannonEntropy(window) (higher = rarer = better)</div>
-      <div class="metric-example">
-        <strong>Expected Shannon entropy for random windows (32-char alphabet):</strong><br>
-        W=16: H≈3.22 bits (below log₂(32)=5 due to sampling collisions)<br>
-        W=25: H≈3.85 bits<br>
-        W=36: H≈4.20 bits<br>
-        W=49: H≈4.45 bits<br>
-        <br>
-        <strong>"aaabbcdeeff12345"</strong> → H≈3.0 bits → rarity_entropy = 3.22 − 3.0 = <strong>0.22</strong> → slightly uneven<br>
-        <strong>"aaaaaaa1aaaaaaa2"</strong> → H≈1.0 bits → rarity_entropy = 3.22 − 1.0 = <strong>2.22</strong> → very uneven<br>
-        <br>
-        <strong>rarity_entropy > 0</strong> = more uneven than expected = recognizable distribution<br>
-        <strong>rarity_entropy ≈ 0</strong> = normal random distribution
-      </div>
-      <p>Entropy catches "skewed distribution" patterns: a window where no single char dominates but several chars are overrepresented. Diversity and max_freq might both look normal, but entropy still flags the unevenness.</p>
-    </div>
-
-      <div class="metric-card highlight-card">
-        <h3>Why Three? Maximum Degrees of Freedom</h3>
-        <p>Each metric catches different patterns. OR logic means a window qualifies if ANY metric is exceptional. This maximizes Alice's chances of finding a recognizable pattern while the attacker must still replicate the EXACT pattern.</p>
-        <div class="metric-example">
-          <strong>max_freq catches what unique misses:</strong><br>
-          "aaaaaaaaa1234567" → max_freq=9, unique=8 — diversity looks normal (8 ≈ 10.3) but one char dominates → rarity_max=5.92<br>
-          <br>
-          <strong>unique catches what max_freq misses:</strong><br>
-          "aaaaabbbbbccccc6" → max_freq=5, unique=4 — max is moderate (5 > 3.08) but only 4 colors → rarity_unique=6.3<br>
-          <br>
-          <strong>entropy catches what both miss:</strong><br>
-          "aaabbcdeeff12345" → unique=9, max_freq=3 — both look normal, but distribution is skewed → H≈3.0, rarity_entropy=0.22<br>
-          <br>
-          <strong>Together they catch ALL THREE types of patterns.</strong><br>
-          Combined quality = max(rarity_unique, rarity_max, rarity_entropy) — whichever metric is most extreme wins.<br>
-          <br>
-          <strong>The asymmetry:</strong> Alice needs ANY recognizable pattern. An attacker needs ALICE'S SPECIFIC pattern. More dimensions of recognizability = more degrees of freedom for Alice = harder for attacker to replicate any specific one.
-        </div>
-        <p>The scanner ranks windows by combined quality <strong>descending</strong> — highest max(rarity_unique, rarity_max, rarity_entropy) wins. Shannon entropy is also displayed as a secondary metric showing the evenness of the distribution.</p>
-      </div>
 
     </div>
     <div class="vertical-progress" id="vprogress">
@@ -851,13 +795,13 @@
   <div class="section hidden" id="sec3">
     <span class="section-number">4 / 7</span>
     <h2>Raindrop Discovery</h2>
-    <p>Now we scan Alice's NPUB from Section 2 with the pattern scanner, using exactly the window size (W) you selected. We look for naturally-occurring high-dominance, low-diversity windows — outliers ranked by combined quality = max(rarity_unique, rarity_max, rarity_entropy). Shannon entropy is displayed as a secondary metric showing how uneven the character distribution is.</p>
+    <p>Now we scan Alice's NPUB from Section 2 for low-unique-character windows. We look for naturally-occurring patterns — windows where few distinct characters appear. These are the "raindrops": visually striking patterns that humans recognize instantly.</p>
     <div id="s3-result"></div>
     <div class="insight">
       <strong>Key insight:</strong> This pattern was DISCOVERED, not constructed. It was just there — a natural outlier in random data.<br><br>
-      <strong>Alice needs ANY recognizable pattern.</strong> Every key she generates might contain one. With three metrics (diversity, raindrop, distribution) and many window positions, she has thousands of chances per key. Finding a pattern is like finding <em>any raindrop in a storm</em> — easy, because they're everywhere.<br><br>
-      <strong>An attacker needs ALICE'S SPECIFIC pattern.</strong> Not just any pattern — the exact one: same characters, same positions, same window size, same metric profile. Finding one specific pattern is like finding <em>that one specific raindrop</em> — astronomically harder.<br><br>
-      <strong>This is the asymmetry:</strong> Alice's cost = find any raindrop (nearly free). Attacker's cost = find that specific raindrop (astronomical). More metrics = more lanes for Alice to find a pattern, but the attacker must match ALL dimensions simultaneously. More metrics help Alice but make the attacker's job exponentially harder.
+      Alice needs <strong>any</strong> recognizable pattern — any window with unusually few unique characters. Every key she generates might contain one. Finding a pattern is like finding <em>any raindrop in a storm</em> — easy, because they're everywhere.<br><br>
+      An attacker needs <strong>Alice's specific</strong> pattern — the exact characters at the exact positions. Finding one specific pattern is like finding <em>that one specific raindrop</em> — astronomically harder.<br><br>
+      <strong>This is the asymmetry:</strong> Alice's cost = find any raindrop (nearly free). Attacker's cost = find that specific raindrop (astronomical).
     </div>
     <button class="next-btn" onclick="revealSection(4)">Next: The Asymmetry →</button>
   </div>
@@ -866,20 +810,20 @@
   <div class="section hidden" id="sec4">
     <span class="section-number">5 / 7</span>
     <h2>The Asymmetry</h2>
-    <p>Alice's fingerprint (left) was discovered for free. An attacker (right) generates a new key with the same vanity prefix — but their fingerprint is completely different. This is the core of the asymmetric vanity approach.</p>
+    <p>Alice's fingerprint (left) was discovered for free. Bob (right) generates a new key with the same vanity prefix — but his fingerprint is completely different. Same vanity, different raindrop.</p>
 
     <div class="insight" style="margin-bottom:20px;">
       <strong>The asymmetry, simply:</strong><br><br>
       Alice finds <em>any</em> raindrop in a storm. The attacker must find <em>that one specific raindrop</em>.<br><br>
-      Each metric we add — diversity, raindrop, distribution — opens a new lane for Alice to discover a pattern. But the attacker doesn't get lanes. They get a target: Alice's exact pattern, across all dimensions at once. More metrics help Alice find something recognizable. They make the attacker's job exponentially harder.
+      The fewer unique characters Alice's raindrop has, the harder it is for the attacker to replicate. A window with 3 unique characters out of 16 is incredibly rare — the attacker would need to grind millions of keys to find one that matches.
     </div>
 
     <div class="controls">
-      <button id="btn4" onclick="generateAttacker()">Generate Attacker</button>
+      <button id="btn4" onclick="generateAttacker()">Generate Bob's Key</button>
     </div>
     <div id="s4-result"></div>
     <div class="insight">
-      <strong>Key insight:</strong> The attacker's key has the same vanity prefix but a completely different fingerprint. They would need to grind millions of keys — each one scanned for Alice's exact pattern — and the cost grows exponentially with the number of metrics. This is why the asymmetry works: Alice finds any pattern for free, the attacker must replicate one specific pattern at astronomical cost.
+      <strong>Key insight:</strong> The attacker's key has the same vanity prefix but a completely different fingerprint. They can find their own raindrop easily — but they cannot find Alice's raindrop again. That's the asymmetry: any raindrop is cheap, one specific raindrop is astronomical.
     </div>
     <button class="next-btn" onclick="revealSection(5)">Next: Split Zones →</button>
   </div>
@@ -1050,20 +994,6 @@ for (let W of WINDOW_SIZES) {
 }
 // W=16 → ~10.34, W=25 → ~16.61, W=36 → ~20.65, W=49 → ~24.20
 
-// Shannon entropy: H = -Σ p(x) · log₂(p(x))
-// Measures evenness of character distribution. Lower = more uneven = more recognizable.
-function shannonEntropy(str) {
-  let freq = {};
-  for (let c of str) freq[c] = (freq[c] || 0) + 1;
-  let h = 0;
-  let n = str.length;
-  for (let c in freq) {
-    let p = freq[c] / n;
-    h -= p * Math.log2(p);
-  }
-  return h;
-}
-
 function uniqueCharCount(str) {
   let seen = {};
   for (let c of str) seen[c] = true;
@@ -1075,79 +1005,27 @@ function computeRarity(uniqueChars, expectedUnique) {
   return expectedUnique - uniqueChars;
 }
 
-// max frequency = count of the most common character in the window
-function maxFrequency(str) {
-  let freq = {};
-  for (let c of str) freq[c] = (freq[c] || 0) + 1;
-  let max = 0;
-  for (let c in freq) if (freq[c] > max) max = freq[c];
-  return max;
-}
-
-// Expected max_freq for a random window of size W from 32-char alphabet
-// E[max_freq] ≈ 3.08 for W=16 (from multinomial analysis)
-// Approximate: E[max_freq] ≈ W * (1 - (1 - 1/S)^(W-1)) / (1 + small correction)
-// Simpler empirical formula: E[max_freq] ≈ 1 + W/S * (1 + ln(S))
-// E[max_freq] from Monte Carlo simulation (5M samples, 32-char alphabet)
-const EXPECTED_MAX_FREQ = {16: 3.08, 25: 4.0, 36: 5.0, 49: 6.0};
-// Expected Shannon entropy for random window of size W from 32-char alphabet
-// Below log2(32)=5 due to sampling collisions with small W
-const EXPECTED_ENTROPY = {16: 3.22, 25: 3.85, 36: 4.20, 49: 4.45};
-
 function runPatternScanner(dataStr, W) {
   W = W || 16;
-  // Triple metric: rarity_unique (diversity) + rarity_max (raindrop) + rarity_entropy (distribution)
-  // Primary ranking: combined quality = max(rarity_unique, rarity_max, rarity_entropy)
-  // Secondary display: Shannon entropy (shown but NOT used for ranking)
-  let bestQuality = -Infinity;
-  let bestRarity = -Infinity;
-  let bestRarityMax = -Infinity;
-  let bestRarityEntropy = -Infinity;
+  // Single metric: unique character count. Fewer unique = more recognizable.
   let bestW = W;
   let bestPos = 0;
-  let bestUnique = 0;
-  let bestExpected = 0;
-  let bestMaxFreq = 0;
-  let bestExpectedMaxFreq = 0;
-  let bestEntropy = 0;
-  let bestExpectedEntropy = 0;
-  let bestMetric = '';
+  let bestUnique = Infinity;
+  let bestExpected = EXPECTED_UNIQUE[W];
   let allResults = [];
-
-  let expected = EXPECTED_UNIQUE[W];
-  let expectedMaxFreq = EXPECTED_MAX_FREQ[W];
-  let expectedEntropy = EXPECTED_ENTROPY[W];
 
   for (let pos = 0; pos <= dataStr.length - W; pos++) {
     let window = dataStr.substring(pos, pos + W);
-    let entropy = shannonEntropy(window);
     let uniq = uniqueCharCount(window);
-    let rarity = expected - uniq;                    // rarity_unique: fewer chars than expected
-    let maxFreq = maxFrequency(window);
-    let rarityMax = maxFreq - expectedMaxFreq;       // rarity_max: bigger raindrop than expected
-    let rarityEntropy = expectedEntropy - entropy;    // rarity_entropy: more uneven than expected
-    let quality = Math.max(rarity, rarityMax, rarityEntropy);  // combined: best of any metric
-    let metric = '';
-    if (quality === rarity) metric = 'unique';
-    else if (quality === rarityMax) metric = 'max';
-    else metric = 'entropy';
-    allResults.push({W, pos, entropy, uniq, expectedUnique: expected, rarity, maxFreq, expectedMaxFreq, rarityMax, entropy, expectedEntropy, rarityEntropy, quality, metric});
-    if (quality > bestQuality) {
-      bestQuality = quality;
-      bestRarity = rarity;
-      bestRarityMax = rarityMax;
-      bestRarityEntropy = rarityEntropy;
-      bestPos = pos;
+    allResults.push({W, pos, uniq, expectedUnique: bestExpected, quality: uniq});
+    if (uniq < bestUnique) {
       bestUnique = uniq;
-      bestExpected = expected;
-      bestMaxFreq = maxFreq;
-      bestExpectedMaxFreq = expectedMaxFreq;
-      bestEntropy = entropy;
-      bestExpectedEntropy = expectedEntropy;
-      bestMetric = metric;
+      bestPos = pos;
     }
   }
-  return {bestRarity, bestRarityMax, bestRarityEntropy, bestW, bestPos, bestUnique, bestExpected, bestMaxFreq, bestExpectedMaxFreq, bestEntropy, bestExpectedEntropy, bestMetric, bestQuality, allResults};
+  // bestQuality = bestUnique (lower = better)
+  let bestQuality = bestUnique;
+  return {bestW, bestPos, bestUnique, bestExpected, bestQuality, allResults};
 }
 
 // ─── Color Map ─────────────────────────────────────────────────────────────
@@ -1200,8 +1078,8 @@ function renderFingerprintGrid(chars, W) {
 // ─── Radial Fingerprint View ────────────────────────────────────────────────
 // Arranges characters in a circle.  Each char sits at angle = 360/W * i,
 // radius ~80 px from center, with a colored circular badge behind it.
-// Center shows "W=<W>, max_freq=<maxFreq>" with unique as secondary.
-function renderFingerprintRadial(chars, W, uniqueChars, maxFreq, entropy) {
+// Center shows "W=<W>, uniq=<uniqueChars>/<W>".
+function renderFingerprintRadial(chars, W, uniqueChars) {
   let n = chars.length;
   let radius = 80;
   let container = 220; // matches .fingerprint-radial CSS
@@ -1226,11 +1104,9 @@ function renderFingerprintRadial(chars, W, uniqueChars, maxFreq, entropy) {
       ';box-shadow:0 0 10px ' + color + 'aa,0 0 4px ' + color +
       ';animation-delay:' + delay + 's;" title="' + c + '">' + c + '</div>';
   }
-  // center label — all three metrics shown
-  let mf = (maxFreq !== undefined && maxFreq !== null) ? maxFreq : '—';
+  // center label — unique chars
   let uniq = (uniqueChars !== undefined && uniqueChars !== null) ? uniqueChars : '—';
-  let ent = (entropy !== undefined && entropy !== null) ? entropy.toFixed(2) : '—';
-  html += '<div class="radial-center"><span>W=<span class="big">' + W + '</span></span><span>uniq=' + uniq + '/' + W + ' max=' + mf + '</span><span style="font-size:10px;color:var(--body)">H=' + ent + '</span></div>';
+  html += '<div class="radial-center"><span>W=<span class="big">' + W + '</span></span><span>uniq=' + uniq + '/' + W + '</span></div>';
   html += '</div>';
   return html;
 }
@@ -1429,10 +1305,9 @@ window.generateSection2 = function() {
 
   let count = 0;
   let satCount = 0;
-  let best = null;   // best raindrop outlier NPUB
+  let best = null;   // best raindrop outlier NPUB (fewest unique chars)
   let second = null;  // second best for comparison
   let secondNpub = null; // any other sat NPUB for Key B
-  let bestRarity = -1;
 
   function grindLoop() {
     let elapsed = Date.now() - startTime;
@@ -1473,7 +1348,7 @@ window.generateSection2 = function() {
     if (vfill) {
       vfill.style.height = Math.min(100, (elapsed / TIMEBOX_MS) * 100) + '%';
       vtime.textContent = secs + 's';
-      if (bestRarity > 0) vlabel.textContent = '⛏';
+      if (best && best.scan.bestUnique < best.scan.bestExpected) vlabel.textContent = '⛏';
       else vlabel.textContent = '⏳';
     }
 
@@ -1482,20 +1357,18 @@ window.generateSection2 = function() {
     html += '<div class="grind-stats">';
     html += '<div class="grind-stat"><span class="grind-num">' + count.toLocaleString() + '</span><span class="grind-lbl">keys generated</span></div>';
     html += '<div class="grind-stat"><span class="grind-num">' + satCount + '</span><span class="grind-lbl">"sat" matches</span></div>';
-    if (best && best.scan.bestQuality > 0) {
+    if (best && best.scan.bestUnique < best.scan.bestExpected) {
       html += '<div class="grind-stat"><span class="grind-num">' + best.scan.bestUnique + '/' + best.scan.bestW + '</span><span class="grind-lbl">unique chars (fewer = better)</span></div>';
-      html += '<div class="grind-stat"><span class="grind-num">' + best.scan.bestMaxFreq + '</span><span class="grind-lbl">max_freq (higher = better)</span></div>';
-      html += '<div class="grind-stat"><span class="grind-num">' + best.scan.bestEntropy.toFixed(2) + '</span><span class="grind-lbl">Shannon H (SECONDARY, lower = better)</span></div>';
-      html += '<div class="grind-stat"><span class="grind-num">Q=' + best.scan.bestQuality.toFixed(2) + '</span><span class="grind-lbl">combined quality (' + best.scan.bestMetric + ' won)</span></div>';
+      html += '<div class="grind-stat"><span class="grind-num">' + (best.scan.bestExpected - best.scan.bestUnique).toFixed(2) + '</span><span class="grind-lbl">rarity (expected - actual)</span></div>';
     } else {
-      html += '<div class="grind-stat"><span class="grind-num">—</span><span class="grind-lbl">best quality</span></div>';
+      html += '<div class="grind-stat"><span class="grind-num">—</span><span class="grind-lbl">best unique</span></div>';
     }
     html += '</div>';
     html += '<div class="progress-bar"><div class="fill" style="width:' + pct + '%"></div></div>';
-    if (best && best.scan.bestQuality > 0) {
-      html += '<div class="grind-explain">Best so far: unique=' + best.scan.bestUnique + '/' + best.scan.bestW + ', max_freq=' + best.scan.bestMaxFreq + ', entropy=' + best.scan.bestEntropy.toFixed(2) + ', combined quality=' + best.scan.bestQuality.toFixed(2) + ' (metric: ' + best.scan.bestMetric + ') in W=' + best.scan.bestW + '. Higher combined quality = more recognizable. Still grinding…</div>';
+    if (best && best.scan.bestUnique < best.scan.bestExpected) {
+      html += '<div class="grind-explain">Best so far: ' + best.scan.bestUnique + ' unique chars in W=' + best.scan.bestW + ' (expected ~' + best.scan.bestExpected.toFixed(1) + ', rarity=' + (best.scan.bestExpected - best.scan.bestUnique).toFixed(2) + '). Fewer unique chars = more recognizable. Still grinding…</div>';
     } else {
-      html += '<div class="grind-explain">Grinding keys looking for "sat" matches. Each match is scanned for low-diversity patterns (combined quality = max(rarity_unique, rarity_max, rarity_entropy), W=' + minW + '). The longer we grind, the better the outlier.</div>';
+      html += '<div class="grind-explain">Grinding keys looking for "sat" matches. Each match is scanned for low-unique-char windows (W=' + minW + '). The longer we grind, the better the outlier.</div>';
     }
     html += '</div>';
     document.getElementById('s2-result').innerHTML = html;
@@ -1505,26 +1378,27 @@ window.generateSection2 = function() {
     } else {
       // Time's up — use whatever we have
       let keyB = second ? second.npub : (secondNpub || best.npub);
-      finishSection2(best.npub, keyB, word, count, bestRarity, satCount);
+      finishSection2(best.npub, keyB, word, count, satCount);
     }
   }
 
-  function finishSection2(npub1, npub2, word, totalTried, finalRarity, totalSats) {
+  function finishSection2(npub1, npub2, word, totalTried, totalSats) {
     state.sec2keys = { npub1, npub2, word };
     state.aliceNpub = npub1;
     state.aliceWord = word;
     let grid = Math.sqrt(minW);
-    let html = '<div class="status-msg found">✓ Mining complete — ' + totalTried.toLocaleString() + ' keys, ' + totalSats + ' "sat" matches. Best pattern: unique=' + best.scan.bestUnique + '/' + best.scan.bestW + ', max_freq=' + best.scan.bestMaxFreq + ', entropy=' + best.scan.bestEntropy.toFixed(2) + ', combined quality=' + best.scan.bestQuality.toFixed(2) + ' (' + best.scan.bestMetric + ' metric won) in W=' + best.scan.bestW + ' (' + Math.sqrt(best.scan.bestW) + '×' + Math.sqrt(best.scan.bestW) + ' grid)</div>';
+    let rarityVal = best.scan.bestExpected - best.scan.bestUnique;
+    let html = '<div class="status-msg found">✓ Mining complete — ' + totalTried.toLocaleString() + ' keys, ' + totalSats + ' "sat" matches. Best pattern: ' + best.scan.bestUnique + ' unique chars in W=' + best.scan.bestW + ' (' + Math.sqrt(best.scan.bestW) + '×' + Math.sqrt(best.scan.bestW) + ' grid), rarity=' + rarityVal.toFixed(2) + '</div>';
     html += '<div class="grind-summary">';
     html += '<div class="grind-stat-inline">' + totalTried.toLocaleString() + ' keys in 60s</div>';
     html += '<div class="grind-stat-inline">' + totalSats + ' contained "sat"</div>';
-    html += '<div class="grind-stat-inline">1 chosen for best combined quality</div>';
+    html += '<div class="grind-stat-inline">1 chosen for best unique-char pattern</div>';
     html += '</div>';
     html += '<div class="side-by-side">';
-    html += '<div><div class="card-label">Key A (best fingerprint outlier)</div><div class="npub-display">npub1' + highlightNpub(npub1, word, 'vanity') + '</div></div>';
+    html += '<div><div class="card-label">Key A (best unique-char outlier)</div><div class="npub-display">npub1' + highlightNpub(npub1, word, 'vanity') + '</div></div>';
     html += '<div><div class="card-label">Key B (comparison)</div><div class="npub-display">npub1' + highlightNpub(npub2, word, 'vanity') + '</div></div>';
     html += '</div>';
-    html += '<div class="note">Both contain "' + word + '" — but Key A has a ' + Math.sqrt(best.scan.bestW) + '×' + Math.sqrt(best.scan.bestW) + ' window with unique=' + best.scan.bestUnique + ' (rarity=' + best.scan.bestRarity.toFixed(2) + '), max_freq=' + best.scan.bestMaxFreq + ' (rarity_max=' + best.scan.bestRarityMax.toFixed(2) + '), entropy=' + best.scan.bestEntropy.toFixed(2) + ' (rarity_entropy=' + best.scan.bestRarityEntropy.toFixed(2) + '), combined quality=' + best.scan.bestQuality.toFixed(2) + ' (' + best.scan.bestMetric + ' metric won). An attacker would need to replicate Alice\'s EXACT pattern — the specific combination of characters, positions, and window size that produced this quality. Click Next to see the pattern.</div>';
+    html += '<div class="note">Both contain "' + word + '" — but Key A has a ' + Math.sqrt(best.scan.bestW) + '×' + Math.sqrt(best.scan.bestW) + ' window with only ' + best.scan.bestUnique + ' unique characters (expected ~' + best.scan.bestExpected.toFixed(1) + ', rarity=' + rarityVal.toFixed(2) + '). An attacker would need to replicate Alice\'s EXACT pattern — the specific characters at the specific positions. Click Next to see the pattern.</div>';
     document.getElementById('s2-result').innerHTML = html;
     document.getElementById('sec2-slider-box').style.display = '';
     btn.textContent = 'Regenerate';
@@ -1562,10 +1436,8 @@ function runSection3() {
   let html = '<div class="status-msg found">✓ Scanner found an outlier window</div>';
   html += '<div class="scanner-info">';
   html += '<div><span class="label">Window size (W):</span> <span class="value">' + result.bestW + '</span> (' + Math.sqrt(result.bestW) + '×' + Math.sqrt(result.bestW) + ' grid)</div>';
-  html += '<div><span class="label">Unique characters:</span> <span class="value">' + result.bestUnique + '</span> out of ' + result.bestW + ' (expected ~' + result.bestExpected.toFixed(1) + ' for random → rarity_unique = ' + result.bestRarity.toFixed(2) + ')</div>';
-  html += '<div><span class="label">Max frequency:</span> <span class="value">' + result.bestMaxFreq + '</span> (most common char appears ' + result.bestMaxFreq + ' times out of ' + result.bestW + ' — expected ~' + result.bestExpectedMaxFreq.toFixed(2) + ' → rarity_max = ' + result.bestRarityMax.toFixed(2) + ')</div>';
-  html += '<div><span class="label">Shannon entropy (SECONDARY):</span> <span class="value">' + result.bestEntropy.toFixed(2) + ' bits</span> (expected ~' + result.bestExpectedEntropy.toFixed(2) + ' for random → rarity_entropy = ' + result.bestRarityEntropy.toFixed(2) + ' — lower H = more uneven = more recognizable)</div>';
-  html += '<div><span class="label">Combined quality (PRIMARY):</span> <span class="value">' + result.bestQuality.toFixed(2) + '</span> = max(rarity_unique=' + result.bestRarity.toFixed(2) + ', rarity_max=' + result.bestRarityMax.toFixed(2) + ', rarity_entropy=' + result.bestRarityEntropy.toFixed(2) + ') — winning metric: ' + result.bestMetric + '</div>';
+  html += '<div><span class="label">Unique characters:</span> <span class="value">' + result.bestUnique + '</span> out of ' + result.bestW + ' (expected ~' + result.bestExpected.toFixed(1) + ' for random)</div>';
+  html += '<div><span class="label">Rarity:</span> <span class="value">' + (result.bestExpected - result.bestUnique).toFixed(2) + '</span> (expected ' + result.bestExpected.toFixed(1) + ' − actual ' + result.bestUnique + ' = ' + (result.bestExpected - result.bestUnique).toFixed(2) + ' — higher = rarer = more recognizable)</div>';
   html += '<div><span class="label">Winning chars:</span> <span class="value">' + winnerChars + '</span></div>';
   html += '</div>';
   html += '<div class="card-label">NPUB with winning section highlighted:</div>';
@@ -1575,9 +1447,9 @@ function runSection3() {
   html += renderCharGradient(dataPart, result.bestPos, result.bestW);
 
   // Radial + grid views side by side
-  html += '<div class="card-label">Radial Fingerprint (W=' + result.bestW + ', uniq=' + result.bestUnique + ', max=' + result.bestMaxFreq + ', H=' + result.bestEntropy.toFixed(2) + '):</div>';
+  html += '<div class="card-label">Radial Fingerprint (W=' + result.bestW + ', ' + result.bestUnique + ' unique chars):</div>';
   html += '<div class="radial-pair">';
-  html += '<div>' + renderFingerprintRadial(winnerChars, result.bestW, result.bestUnique, result.bestMaxFreq, result.bestEntropy) + '</div>';
+  html += '<div>' + renderFingerprintRadial(winnerChars, result.bestW, result.bestUnique) + '</div>';
   html += '<div><div class="card-label" style="margin-bottom:4px;">Grid view (' + dim + '×' + dim + '):</div>' + renderFingerprintGrid(winnerChars, result.bestW) + '</div>';
   html += '</div>';
 
@@ -1623,9 +1495,9 @@ window.generateAttacker = function() {
       html += '<div class="scanner-info" style="margin-bottom:8px;">';
       html += '<div><span class="label">NPUB:</span></div>';
       html += '<div style="font-size:11px;word-break:break-all;color:var(--green);">' + state.aliceNpub.substring(0,30) + '…</div>';
-      html += '<div><span class="label">W=' + state.aliceScan.bestW + ', uniq=' + state.aliceScan.bestUnique + ', max=' + state.aliceScan.bestMaxFreq + '</span></div>';
+      html += '<div><span class="label">W=' + state.aliceScan.bestW + ', ' + state.aliceScan.bestUnique + ' unique chars</span></div>';
       html += '</div>';
-      html += renderFingerprintRadial(aliceChars, state.aliceScan.bestW, state.aliceScan.bestUnique, state.aliceScan.bestMaxFreq, state.aliceScan.bestEntropy);
+      html += renderFingerprintRadial(aliceChars, state.aliceScan.bestW, state.aliceScan.bestUnique);
       html += '</div>';
       // Attacker — radial view
       html += '<div>';
@@ -1633,14 +1505,14 @@ window.generateAttacker = function() {
       html += '<div class="scanner-info" style="margin-bottom:8px;">';
       html += '<div><span class="label">NPUB:</span></div>';
       html += '<div style="font-size:11px;word-break:break-all;color:var(--red);">' + attackerNpub.substring(0,30) + '…</div>';
-      html += '<div><span class="label">W=' + scan.bestW + ', uniq=' + scan.bestUnique + ', max=' + scan.bestMaxFreq + '</span></div>';
+      html += '<div><span class="label">W=' + scan.bestW + ', ' + scan.bestUnique + ' unique chars</span></div>';
       html += '</div>';
-      html += renderFingerprintRadial(attackerChars, scan.bestW, scan.bestUnique, scan.bestMaxFreq);
+      html += renderFingerprintRadial(attackerChars, scan.bestW, scan.bestUnique);
       html += '</div>';
       html += '</div>';
       html += '<div class="note">Compare the two circles: different radius patterns, different colors, different characters. An attacker cannot reproduce Alice\'s exact fingerprint without astronomical cost.</div>';
       document.getElementById('s4-result').innerHTML = html;
-      btn.textContent = 'Generate New Attacker';
+      btn.textContent = 'Generate New Bob Key';
       btn.disabled = false;
     }
     findAttacker();
