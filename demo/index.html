@@ -730,7 +730,7 @@
     <p>Here are two keypairs, both with "<span style="color:var(--green)">sat</span>" in their NPUB. Anyone can make these. There's no way to tell them apart.</p>
     
     <h3 style="color:var(--header);font-size:18px;margin-top:24px;margin-bottom:8px;">Understanding the Metric</h3>
-    <p>While we mine, here's how the scanner will evaluate each candidate. The metric is <strong>unique character count</strong> — how many distinct bech32 characters appear in a 16-character window. Fewer unique chars = more recognizable pattern.</p>
+    <p>While we mine, here's how the scanner will evaluate each candidate. The metric is <strong>unique character count</strong> — how many distinct bech32 characters appear in a 9-character window (3×3 grid). Fewer unique chars = more recognizable pattern.</p>
 
     <div class="metrics-with-bar">
     <div class="metrics-content">
@@ -739,19 +739,20 @@
       <h3>Unique Characters: The Raindrop Metric</h3>
       <p>The <strong>unique character count</strong> measures how many distinct bech32 characters appear in a window. Fewer unique chars = bigger blocks of the same color = more recognizable to humans.</p>
       <div class="metric-formula">rarity = expectedUnique − uniqueChars (higher = rarer = better)</div>
-      <p>A 16-character window with only <strong>3 unique characters</strong> looks like:</p>
+      <p>A 9-character window with only <strong>3 unique characters</strong> looks like:</p>
       <div class="metric-visual">
-        <div class="mini-grid">[p][p][q][p]<br>[p][q][q][p]<br>[q][p][p][q]<br>[p][q][p][p]</div>
+        <div class="mini-grid">[p][p][q]<br>[p][q][p]<br>[q][p][p]</div>
       </div>
-      <p>A 16-character window with <strong>10 unique characters</strong> looks like:</p>
+      <p>A 9-character window with <strong>8 unique characters</strong> looks like:</p>
       <div class="metric-visual">
-        <div class="mini-grid">[7][k][2][x]<br>[m][v][0][z]<br>[3][r][5][k]<br>[8][j][q][n]</div>
+        <div class="mini-grid">[7][k][2]<br>[m][v][0]<br>[3][r][5]</div>
       </div>
       <p>Same window size. But one is <strong>instantly recognizable</strong> and the other looks like noise.</p>
       <div class="metric-example">
         <strong>Occupancy problem — expected unique chars in random windows:</strong><br>
         For a window of W chars from a 32-char alphabet, E[unique] = 32 × (1 − (31/32)^W)<br>
-        W=16: ~10.3 unique (out of 16 possible) → rarity = 10.3 − actual<br>
+        W=9: ~7.9 unique (out of 9 possible) → rarity = 7.9 − actual<br>
+        W=16: ~10.3 unique<br>
         W=25: ~16.6 unique<br>
         W=36: ~20.7 unique<br>
         W=49: ~24.2 unique<br>
@@ -775,12 +776,12 @@
     <h3 style="color:var(--header);font-size:18px;margin-top:24px;margin-bottom:8px;">Mining in Progress</h3>
     <p style="color:var(--body);font-size:13px;">Mining started automatically when you entered this section. You don't need to press anything.</p>
     <div class="slider-container" id="sec2-slider-box" style="display:none;">
-      <label class="slider-label">Fingerprint window size: <span id="minW-label">16</span> chars (<span id="minW-grid">4×4</span> grid)</label>
-      <input type="range" id="minW-slider" min="16" max="49" step="9" value="16" class="slider" onchange="updateMinWLabel()">
+      <label class="slider-label">Fingerprint window size: <span id="minW-label">9</span> chars (<span id="minW-grid">3×3</span> grid)</label>
+      <input type="range" id="minW-slider" min="9" max="49" step="1" value="9" class="slider" onchange="snapSlider(); updateMinWLabel();" oninput="updateMinWLabel();">
       <div class="slider-marks">
-        <span>4×4</span><span>5×5</span><span>6×6</span><span>7×7</span>
+        <span>3×3</span><span>4×4</span><span>5×5</span><span>6×6</span><span>7×7</span>
       </div>
-      <div class="note" style="font-size:11px;">Scanner uses exactly this window size. Larger = harder to forge = more asymmetric.</div>
+      <div class="note" style="font-size:11px;">Scanner uses exactly this window size. Smaller = more recognizable. Larger = harder to forge.</div>
     </div>
     <button id="btn2" onclick="generateSection2()" style="display:none;">Regenerate</button>
     <div id="s2-result"></div>
@@ -987,12 +988,12 @@ function highlightNpub(npub, word, className) {
 // Expected unique chars for window of size W from 32-char alphabet (occupancy problem)
 // E[unique] = 32 × (1 - (31/32)^W)
 const EXPECTED_UNIQUE = {};
-// Perfect squares only: 4×4, 5×5, 6×6, 7×7
-const WINDOW_SIZES = [16, 25, 36, 49];
+// Perfect squares only: 3×3, 4×4, 5×5, 6×6, 7×7
+const WINDOW_SIZES = [9, 16, 25, 36, 49];
 for (let W of WINDOW_SIZES) {
   EXPECTED_UNIQUE[W] = 32 * (1 - Math.pow(31 / 32, W));
 }
-// W=16 → ~10.34, W=25 → ~16.61, W=36 → ~20.65, W=49 → ~24.20
+// W=9 → ~6.97, W=16 → ~10.34, W=25 → ~16.61, W=36 → ~20.65, W=49 → ~24.20
 
 function uniqueCharCount(str) {
   let seen = {};
@@ -1006,7 +1007,7 @@ function computeRarity(uniqueChars, expectedUnique) {
 }
 
 function runPatternScanner(dataStr, W) {
-  W = W || 16;
+  W = W || 9;
   // Single metric: unique character count. Fewer unique = more recognizable.
   let bestW = W;
   let bestPos = 0;
@@ -1284,6 +1285,19 @@ function hexToBuf(hex) {
 }
 
 // ─── SECTION 2: No Asymmetry ───────────────────────────────────────────────
+const SQUARES = [9, 16, 25, 36, 49];
+window.snapSlider = function() {
+  let slider = document.getElementById('minW-slider');
+  let val = parseInt(slider.value);
+  let nearest = SQUARES[0];
+  let bestDist = Math.abs(val - nearest);
+  for (let s of SQUARES) {
+    let d = Math.abs(val - s);
+    if (d < bestDist) { nearest = s; bestDist = d; }
+  }
+  slider.value = nearest;
+};
+
 window.updateMinWLabel = function() {
   let slider = document.getElementById('minW-slider');
   let val = parseInt(slider.value);
@@ -1298,7 +1312,7 @@ window.generateSection2 = function() {
   btn.disabled = true;
 
   let word = 'sat';
-  let minW = parseInt(document.getElementById('minW-slider').value) || 16;
+  let minW = parseInt(document.getElementById('minW-slider').value) || 9;
   let TIMEBOX_MS = 30000; // 30 seconds
   let startTime = Date.now();
 
@@ -1422,7 +1436,7 @@ function runSection3() {
     return;
   }
   let dataPart = npub.substring(5); // after npub1
-  let minW = parseInt(document.getElementById('minW-slider').value) || 16;
+  let minW = parseInt(document.getElementById('minW-slider').value) || 9;
   let result = runPatternScanner(dataPart, minW);
   state.aliceScan = result;
 
@@ -1479,7 +1493,7 @@ window.generateAttacker = function() {
     }
     function finishAttacker(attackerNpub) {
       let dataPart = attackerNpub.substring(5);
-      let scan = runPatternScanner(dataPart, parseInt(document.getElementById('minW-slider').value) || 16);
+      let scan = runPatternScanner(dataPart, parseInt(document.getElementById('minW-slider').value) || 9);
       state.attackerNpub = attackerNpub;
       state.attackerScan = scan;
 
