@@ -1433,19 +1433,19 @@ window.generateSection2 = function() {
     html += '<div class="grind-stats">';
     html += '<div class="grind-stat"><span class="grind-num">' + count.toLocaleString() + '</span><span class="grind-lbl">keys generated</span></div>';
     html += '<div class="grind-stat"><span class="grind-num">' + satCount + '</span><span class="grind-lbl">"sat" matches</span></div>';
-    if (best && best.scan.bestCombined > 5) {
+    if (best && best.scan.bestQuality > 0) {
+      html += '<div class="grind-stat"><span class="grind-num">' + best.scan.bestUnique + '/' + best.scan.bestW + '</span><span class="grind-lbl">unique chars (fewer = better)</span></div>';
       html += '<div class="grind-stat"><span class="grind-num">' + best.scan.bestMaxFreq + '</span><span class="grind-lbl">max_freq (higher = better)</span></div>';
-      html += '<div class="grind-stat"><span class="grind-num">' + best.scan.bestCombined.toFixed(1) + '</span><span class="grind-lbl">combined score (PRIMARY)</span></div>';
-      html += '<div class="grind-stat"><span class="grind-num">' + best.scan.bestUnique + '/' + best.scan.bestW + '</span><span class="grind-lbl">unique chars (secondary)</span></div>';
+      html += '<div class="grind-stat"><span class="grind-num">Q=' + best.scan.bestQuality.toFixed(2) + '</span><span class="grind-lbl">combined rarity (higher = better)</span></div>';
     } else {
       html += '<div class="grind-stat"><span class="grind-num">—</span><span class="grind-lbl">best quality</span></div>';
     }
     html += '</div>';
     html += '<div class="progress-bar"><div class="fill" style="width:' + pct + '%"></div></div>';
-    if (best && best.scan.bestCombined > 5) {
-      html += '<div class="grind-explain">Best so far: max_freq=' + best.scan.bestMaxFreq + ', combined=' + best.scan.bestCombined.toFixed(1) + ' in W=' + best.scan.bestW + ' (unique=' + best.scan.bestUnique + '). Higher combined = more recognizable. Still grinding…</div>';
+    if (best && best.scan.bestQuality > 0) {
+      html += '<div class="grind-explain">Best so far: unique=' + best.scan.bestUnique + '/' + best.scan.bestW + ', max_freq=' + best.scan.bestMaxFreq + ', combined rarity=' + best.scan.bestQuality.toFixed(2) + ' in W=' + best.scan.bestW + '. Higher combined rarity = more recognizable. Still grinding…</div>';
     } else {
-      html += '<div class="grind-explain">Grinding keys looking for "sat" matches. Each match is scanned for high-dominance low-diversity patterns (combined score = max_freq × avg_freq, W≥' + minW + '). The longer we grind, the better the outlier.</div>';
+      html += '<div class="grind-explain">Grinding keys looking for "sat" matches. Each match is scanned for low-entropy patterns (combined rarity = max(rarity_unique, rarity_max), W≥' + minW + '). The longer we grind, the better the outlier.</div>';
     }
     html += '</div>';
     document.getElementById('s2-result').innerHTML = html;
@@ -1464,17 +1464,17 @@ window.generateSection2 = function() {
     state.aliceNpub = npub1;
     state.aliceWord = word;
     let grid = Math.sqrt(minW);
-    let html = '<div class="status-msg found">✓ Mining complete — ' + totalTried.toLocaleString() + ' keys, ' + totalSats + ' "sat" matches. Best pattern: max_freq=' + best.scan.bestMaxFreq + ', combined=' + best.scan.bestCombined.toFixed(1) + ' in W=' + best.scan.bestW + ' (' + Math.sqrt(best.scan.bestW) + '×' + Math.sqrt(best.scan.bestW) + ' grid), unique=' + best.scan.bestUnique + '</div>';
+    let html = '<div class="status-msg found">✓ Mining complete — ' + totalTried.toLocaleString() + ' keys, ' + totalSats + ' "sat" matches. Best pattern: unique=' + best.scan.bestUnique + '/' + best.scan.bestW + ', max_freq=' + best.scan.bestMaxFreq + ', combined rarity=' + best.scan.bestQuality.toFixed(2) + ' in W=' + best.scan.bestW + ' (' + Math.sqrt(best.scan.bestW) + '×' + Math.sqrt(best.scan.bestW) + ' grid)</div>';
     html += '<div class="grind-summary">';
     html += '<div class="grind-stat-inline">' + totalTried.toLocaleString() + ' keys in 60s</div>';
     html += '<div class="grind-stat-inline">' + totalSats + ' contained "sat"</div>';
-    html += '<div class="grind-stat-inline">1 chosen for best combined score</div>';
+    html += '<div class="grind-stat-inline">1 chosen for best combined rarity</div>';
     html += '</div>';
     html += '<div class="side-by-side">';
-    html += '<div><div class="card-label">Key A (best combined-score outlier)</div><div class="npub-display">npub1' + highlightNpub(npub1, word, 'vanity') + '</div></div>';
+    html += '<div><div class="card-label">Key A (best fingerprint outlier)</div><div class="npub-display">npub1' + highlightNpub(npub1, word, 'vanity') + '</div></div>';
     html += '<div><div class="card-label">Key B (comparison)</div><div class="npub-display">npub1' + highlightNpub(npub2, word, 'vanity') + '</div></div>';
     html += '</div>';
-    html += '<div class="note">Both contain "' + word + '" — but Key A has a ' + Math.sqrt(best.scan.bestW) + '×' + Math.sqrt(best.scan.bestW) + ' window with max_freq=' + best.scan.bestMaxFreq + ' and combined score=' + best.scan.bestCombined.toFixed(1) + ' (unique=' + best.scan.bestUnique + ', rarity=' + best.scan.bestRarity.toFixed(2) + '). An attacker would need to replicate Alice\'s EXACT pattern, not just find any low-diversity NPUB. Click Next to see the pattern.</div>';
+    html += '<div class="note">Both contain "' + word + '" — but Key A has a ' + Math.sqrt(best.scan.bestW) + '×' + Math.sqrt(best.scan.bestW) + ' window with unique=' + best.scan.bestUnique + ' (rarity=' + best.scan.bestRarity.toFixed(2) + ') and max_freq=' + best.scan.bestMaxFreq + ' (rarity_max=' + best.scan.bestRarityMax.toFixed(2) + '), combined rarity=' + best.scan.bestQuality.toFixed(2) + '. An attacker would need to replicate Alice\'s EXACT pattern — faking BOTH metrics simultaneously. Click Next to see the pattern.</div>';
     document.getElementById('s2-result').innerHTML = html;
     document.getElementById('sec2-slider-box').style.display = '';
     btn.textContent = 'Regenerate';
@@ -1512,10 +1512,9 @@ function runSection3() {
   let html = '<div class="status-msg found">✓ Scanner found an outlier window</div>';
   html += '<div class="scanner-info">';
   html += '<div><span class="label">Window size (W):</span> <span class="value">' + result.bestW + '</span> (' + Math.sqrt(result.bestW) + '×' + Math.sqrt(result.bestW) + ' grid)</div>';
-  html += '<div><span class="label">Combined score:</span> <span class="value">' + result.bestCombined.toFixed(2) + '</span> = max_freq × avg_freq = ' + result.bestMaxFreq + ' × ' + result.bestAvgFreq.toFixed(2) + ' — PRIMARY metric (higher = more recognizable)</div>';
-  html += '<div><span class="label">Max frequency:</span> <span class="value">' + result.bestMaxFreq + '</span> (most common char appears ' + result.bestMaxFreq + ' times out of ' + result.bestW + ' — expected ~' + result.bestExpectedMaxFreq.toFixed(2) + ' for random)</div>';
-  html += '<div><span class="label">Unique characters:</span> <span class="value">' + result.bestUnique + '</span> out of ' + result.bestW + ' (secondary — expected ~' + result.bestExpected.toFixed(1) + ')</div>';
-  html += '<div><span class="label">Rarity:</span> <span class="value">' + result.bestRarity.toFixed(2) + '</span> (expected ~' + result.bestExpected.toFixed(1) + ' unique, actual ' + result.bestUnique + ' → rarity = ' + result.bestExpected.toFixed(1) + ' − ' + result.bestUnique + ' = ' + result.bestRarity.toFixed(2) + ')</div>';
+  html += '<div><span class="label">Unique characters:</span> <span class="value">' + result.bestUnique + '</span> out of ' + result.bestW + ' (expected ~' + result.bestExpected.toFixed(1) + ' for random → rarity_unique = ' + result.bestRarity.toFixed(2) + ')</div>';
+  html += '<div><span class="label">Max frequency:</span> <span class="value">' + result.bestMaxFreq + '</span> (most common char appears ' + result.bestMaxFreq + ' times out of ' + result.bestW + ' — expected ~' + result.bestExpectedMaxFreq.toFixed(2) + ' → rarity_max = ' + result.bestRarityMax.toFixed(2) + ')</div>';
+  html += '<div><span class="label">Combined rarity:</span> <span class="value">' + result.bestQuality.toFixed(2) + '</span> = max(rarity_unique=' + result.bestRarity.toFixed(2) + ', rarity_max=' + result.bestRarityMax.toFixed(2) + ') — PRIMARY metric (higher = more recognizable)</div>';
   html += '<div><span class="label">Entropy:</span> <span class="value">' + result.bestEntropy.toFixed(3) + '</span> bits (informational)</div>';
   html += '<div><span class="label">Winning chars:</span> <span class="value">' + winnerChars + '</span></div>';
   html += '</div>';
@@ -1526,7 +1525,7 @@ function runSection3() {
   html += renderEntropyGradient(dataPart, result.bestPos, result.bestW);
 
   // Radial + grid views side by side
-  html += '<div class="card-label">Radial Fingerprint (W=' + result.bestW + ', max_freq=' + result.bestMaxFreq + ', combined=' + result.bestCombined.toFixed(1) + '):</div>';
+  html += '<div class="card-label">Radial Fingerprint (W=' + result.bestW + ', uniq=' + result.bestUnique + ', max=' + result.bestMaxFreq + '):</div>';
   html += '<div class="radial-pair">';
   html += '<div>' + renderFingerprintRadial(winnerChars, result.bestW, result.bestUnique, result.bestMaxFreq) + '</div>';
   html += '<div><div class="card-label" style="margin-bottom:4px;">Grid view (' + dim + '×' + dim + '):</div>' + renderFingerprintGrid(winnerChars, result.bestW) + '</div>';
@@ -1574,7 +1573,7 @@ window.generateAttacker = function() {
       html += '<div class="scanner-info" style="margin-bottom:8px;">';
       html += '<div><span class="label">NPUB:</span></div>';
       html += '<div style="font-size:11px;word-break:break-all;color:var(--green);">' + state.aliceNpub.substring(0,30) + '…</div>';
-      html += '<div><span class="label">W=' + state.aliceScan.bestW + ', max_freq=' + state.aliceScan.bestMaxFreq + ', combined=' + state.aliceScan.bestCombined.toFixed(1) + '</span></div>';
+      html += '<div><span class="label">W=' + state.aliceScan.bestW + ', uniq=' + state.aliceScan.bestUnique + ', max=' + state.aliceScan.bestMaxFreq + '</span></div>';
       html += '</div>';
       html += renderFingerprintRadial(aliceChars, state.aliceScan.bestW, state.aliceScan.bestUnique, state.aliceScan.bestMaxFreq);
       html += '</div>';
@@ -1584,7 +1583,7 @@ window.generateAttacker = function() {
       html += '<div class="scanner-info" style="margin-bottom:8px;">';
       html += '<div><span class="label">NPUB:</span></div>';
       html += '<div style="font-size:11px;word-break:break-all;color:var(--red);">' + attackerNpub.substring(0,30) + '…</div>';
-      html += '<div><span class="label">W=' + scan.bestW + ', max_freq=' + scan.bestMaxFreq + ', combined=' + scan.bestCombined.toFixed(1) + '</span></div>';
+      html += '<div><span class="label">W=' + scan.bestW + ', uniq=' + scan.bestUnique + ', max=' + scan.bestMaxFreq + '</span></div>';
       html += '</div>';
       html += renderFingerprintRadial(attackerChars, scan.bestW, scan.bestUnique, scan.bestMaxFreq);
       html += '</div>';
