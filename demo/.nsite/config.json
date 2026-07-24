@@ -1,0 +1,19 @@
+{
+  "$schema": "https://nsyte.run/schemas/config.schema.json",
+  "publishProfile": true,
+  "publishServerList": true,
+  "publishRelayList": true,
+  "fallback": "/index.html",
+  "relays": [
+    "wss://relay.damus.io",
+    "wss://nos.lol"
+  ],
+  "servers": [
+    "https://blossom.primal.net",
+    "https://cdn.satellite.earth"
+  ],
+  "profile": {
+    "name": "Asymmetric Vanity NPUBs",
+    "about": "Interactive demo: vanity NPUB grinding + low-entropy fingerprint discovery for anti-phishing. Unique char count + max frequency dual metric."
+  }
+}
