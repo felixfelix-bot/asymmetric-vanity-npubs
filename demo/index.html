@@ -854,7 +854,10 @@
     <p>Now we scan Alice's NPUB from Section 2 with the pattern scanner, using exactly the window size (W) you selected. We look for naturally-occurring high-dominance, low-diversity windows — outliers ranked by combined quality = max(rarity_unique, rarity_max, rarity_entropy). Shannon entropy is displayed as a secondary metric showing how uneven the character distribution is.</p>
     <div id="s3-result"></div>
     <div class="insight">
-      <strong>Key insight:</strong> This pattern was DISCOVERED, not constructed. Alice needs ANY recognizable pattern — every key she generates might contain one. She gets millions of chances. Finding her pattern costs nothing beyond the initial key generation. The more metrics we use (diversity, raindrop, entropy), the more degrees of freedom Alice has — and the harder it becomes for an attacker to replicate any specific pattern.
+      <strong>Key insight:</strong> This pattern was DISCOVERED, not constructed. It was just there — a natural outlier in random data.<br><br>
+      <strong>Alice needs ANY recognizable pattern.</strong> Every key she generates might contain one. With three metrics (diversity, raindrop, distribution) and many window positions, she has thousands of chances per key. Finding a pattern is like finding <em>any raindrop in a storm</em> — easy, because they're everywhere.<br><br>
+      <strong>An attacker needs ALICE'S SPECIFIC pattern.</strong> Not just any pattern — the exact one: same characters, same positions, same window size, same metric profile. Finding one specific pattern is like finding <em>that one specific raindrop</em> — astronomically harder.<br><br>
+      <strong>This is the asymmetry:</strong> Alice's cost = find any raindrop (nearly free). Attacker's cost = find that specific raindrop (astronomical). More metrics = more lanes for Alice to find a pattern, but the attacker must match ALL dimensions simultaneously. More metrics help Alice but make the attacker's job exponentially harder.
     </div>
     <button class="next-btn" onclick="revealSection(4)">Next: The Asymmetry →</button>
   </div>
@@ -866,11 +869,9 @@
     <p>Alice's fingerprint (left) was discovered for free. An attacker (right) generates a new key with the same vanity prefix — but their fingerprint is completely different. This is the core of the asymmetric vanity approach.</p>
 
     <div class="insight" style="margin-bottom:20px;">
-      <strong>The core argument:</strong><br><br>
-      <strong>Alice needs ANY recognizable pattern.</strong> Every key she generates might contain one — a low-diversity window, a big raindrop, or a skewed distribution. With three metrics and many window positions, she has thousands of chances per key. Finding a pattern is like finding <em>any raindrop in a storm</em> — easy, because they're everywhere.<br><br>
-      <strong>An attacker needs ALICE'S SPECIFIC pattern.</strong> They can't just find any pattern — they must replicate the exact one Alice has: same characters, same positions, same window size, same metric profile. Finding a specific pattern is like finding <em>that one specific raindrop</em> — astronomically harder.<br><br>
-      <strong>This is the asymmetry:</strong> Alice's cost = find any raindrop. Attacker's cost = find that specific raindrop.<br><br>
-      <strong>More dimensions of recognizability = more degrees of freedom for Alice = harder for attacker.</strong> Each metric (unique chars, max frequency, Shannon entropy) adds another way for Alice to find a pattern. But the attacker must match ALL dimensions of Alice's specific pattern simultaneously. More metrics don't make it harder for Alice — they make it harder for the attacker.
+      <strong>The asymmetry, simply:</strong><br><br>
+      Alice finds <em>any</em> raindrop in a storm. The attacker must find <em>that one specific raindrop</em>.<br><br>
+      Each metric we add — diversity, raindrop, distribution — opens a new lane for Alice to discover a pattern. But the attacker doesn't get lanes. They get a target: Alice's exact pattern, across all dimensions at once. More metrics help Alice find something recognizable. They make the attacker's job exponentially harder.
     </div>
 
     <div class="controls">
