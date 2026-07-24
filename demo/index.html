@@ -730,15 +730,15 @@
     <p>Here are two keypairs, both with "<span style="color:var(--green)">sat</span>" in their NPUB. Anyone can make these. There's no way to tell them apart.</p>
     
     <h3 style="color:var(--header);font-size:18px;margin-top:24px;margin-bottom:8px;">Understanding the Metrics</h3>
-    <p>While we mine, here's how the scanner will evaluate each candidate. The primary metric is <strong>unique character count</strong> — fewer unique chars = more recognizable "raindrop" pattern. Z-score is kept as secondary info.</p>
+    <p>While we mine, here's how the scanner will evaluate each candidate. The primary metric is <strong>unique character count</strong> — fewer unique chars = more recognizable "raindrop" pattern. Rarity is derived from the occupancy problem.</p>
 
     <div class="metrics-with-bar">
     <div class="metrics-content">
 
     <div class="metric-card">
-      <h3>Unique Characters: The Raindrop Metric (Primary)</h3>
+      <h3>Unique Characters: The Raindrop Metric</h3>
       <p>The <strong>unique character count</strong> is our primary metric for recognizability. It measures how many distinct bech32 characters appear in a window.</p>
-      <div class="metric-formula">quality = unique_chars (lower = better)</div>
+      <div class="metric-formula">rarity = expectedUnique − uniqueChars (higher = rarer = better)</div>
       <p>A 16-character window with only <strong>3 unique characters</strong> looks like:</p>
       <div class="metric-visual">
         <div class="mini-grid">[p][p][q][p]<br>[p][q][q][p]<br>[q][p][p][q]<br>[p][q][p][p]</div>
@@ -749,31 +749,32 @@
       </div>
       <p>Same window size. But one is <strong>instantly recognizable</strong> and the other looks like noise. Fewer unique characters = bigger blocks of the same color = more recognizable to humans.</p>
       <div class="metric-example">
-        <strong>Expected unique chars in random hex windows:</strong><br>
-        W=16: ~10.3 unique (out of 16 possible)<br>
-        W=25: ~12.1 unique<br>
-        W=36: ~13.5 unique<br>
-        W=49: ~14.5 unique<br>
+        <strong>Occupancy problem — expected unique chars in random windows:</strong><br>
+        For a window of W chars from a 32-char alphabet, E[unique] = 32 × (1 − (31/32)^W)<br>
+        W=16: ~10.3 unique (out of 16 possible) → rarity = 10.3 − actual<br>
+        W=25: ~16.6 unique<br>
+        W=36: ~20.7 unique<br>
+        W=49: ~24.2 unique<br>
         <br>
-        <strong>1 unique</strong> (all same char) = astronomically rare — like a perfect raindrop<br>
-        <strong>2 unique</strong> = still absurdly rare — a two-color pattern<br>
-        <strong>3 unique</strong> = very rare — a three-color raindrop<br>
-        <strong>10+ unique</strong> = normal random noise — not recognizable
+        <strong>rarity > 0</strong> = fewer unique than expected = recognizable pattern<br>
+        <strong>rarity = 0</strong> = exactly as expected = normal random noise<br>
+        <strong>rarity < 0</strong> = more unique than expected (not useful for fingerprinting)
       </div>
-      <p>The scanner ranks windows by unique char count <strong>ascending</strong> — fewest unique chars wins. This is the "raindrop" metric: visually striking low-diversity windows that humans recognize instantly and attackers can't replicate.</p>
+      <p>The scanner ranks windows by rarity <strong>descending</strong> — highest rarity wins. This is the "raindrop" metric: visually striking low-diversity windows that humans recognize instantly and attackers can't replicate.</p>
     </div>
 
     <div class="metric-card">
-      <h3>Z-Score: Statistical Rarity (Secondary)</h3>
-      <p>The z-score measures how statistically unusual a window is compared to random expectation. It's retained as a secondary display metric.</p>
-      <div class="metric-formula">z = (expected_entropy − actual_entropy) ÷ σ</div>
-      <p>For W=16: expected entropy H̄ = 3.571 bits, σ = 0.187 bits. A window with entropy = 1.5 bits gives z = (3.571 − 1.5) ÷ 0.187 = z=11.1.</p>
+      <h3>Rarity: The Occupancy Distance</h3>
+      <p>The rarity score measures how far below expectation the unique char count is. It's derived from the classic <strong>occupancy problem</strong> in probability theory.</p>
+      <div class="metric-formula">rarity = E[unique] − actual_unique</div>
+      <p>For W=16: E[unique] ≈ 10.3. A window with 3 unique chars gives rarity = 10.3 − 3 = 7.3. A window with 10 unique chars gives rarity = 0.3 (nearly normal).</p>
       <div class="metric-example">
-        <strong>z = 2</strong> → 2σ below mean → top 2.3% of windows<br>
-        <strong>z = 4</strong> → 4σ below mean → top 0.003% (1 in 33,000)<br>
-        <strong>z = 8</strong> → 8σ below mean → astronomically rare
+        <strong>rarity = 7.3</strong> → 3 unique chars in W=16 → extremely recognizable<br>
+        <strong>rarity = 4.3</strong> → 6 unique chars in W=16 → very recognizable<br>
+        <strong>rarity = 1.3</strong> → 9 unique chars in W=16 → mildly recognizable<br>
+        <strong>rarity ≈ 0</strong> → ~10 unique chars → normal random noise
       </div>
-      <p>Higher z = harder for an attacker to replicate by chance. This is useful context but <strong>not</strong> the primary ranking metric — unique char count is simpler and more intuitive.</p>
+      <p>Higher rarity = harder for an attacker to replicate by chance. The occupancy formula gives us a principled, parameter-free expectation — no baseline sampling or normal distribution assumptions needed.</p>
     </div>
 
     </div>
@@ -988,14 +989,15 @@ function highlightNpub(npub, word, className) {
 }
 
 // ─── Entropy Scanner ──────────────────────────────────────────────────────
-const BASELINE = {
-  16: {mean: 3.571, std: 0.187},
-  25: {mean: 3.993, std: 0.163},
-  36: {mean: 4.277, std: 0.138},
-  49: {mean: 4.468, std: 0.115},
-};
+// Expected unique chars for window of size W from 32-char alphabet (occupancy problem)
+// E[unique] = 32 × (1 - (31/32)^W)
+const EXPECTED_UNIQUE = {};
 // Perfect squares only: 4×4, 5×5, 6×6, 7×7
 const WINDOW_SIZES = [16, 25, 36, 49];
+for (let W of WINDOW_SIZES) {
+  EXPECTED_UNIQUE[W] = 32 * (1 - Math.pow(31 / 32, W));
+}
+// W=16 → ~10.34, W=25 → ~16.61, W=36 → ~20.65, W=49 → ~24.20
 
 function shannonEntropy(str) {
   let freq = {};
@@ -1015,44 +1017,45 @@ function uniqueCharCount(str) {
   return Object.keys(seen).length;
 }
 
-function qualityToDb(q) {
-  if (q <= 0 || q === Infinity) return '—';
-  return q.toString();  // quality is now just unique char count
+// rarity = expectedUnique - uniqueChars (higher = rarer = more recognizable)
+function computeRarity(uniqueChars, expectedUnique) {
+  return expectedUnique - uniqueChars;
 }
 
 function runEntropyScanner(dataStr, minW) {
   minW = minW || 16;
-  // Primary metric: unique char count (lower = better = more recognizable "raindrop")
-  let bestQuality = Infinity;  // fewest unique chars wins
-  let bestZ = -1;
+  // Primary metric: rarity = expectedUnique - uniqueChars (higher = better)
+  let bestRarity = -Infinity;
+  let bestQuality = -Infinity;
   let bestW = 0;
   let bestPos = 0;
   let bestEntropy = 0;
   let bestUnique = 0;
+  let bestExpected = 0;
   let allResults = [];
 
   for (let W of WINDOW_SIZES) {
     if (W < minW) continue;
-    let base = BASELINE[W];
+    let expected = EXPECTED_UNIQUE[W];
     for (let pos = 0; pos <= dataStr.length - W; pos++) {
       let window = dataStr.substring(pos, pos + W);
       let ent = shannonEntropy(window);
-      let z = Math.max(0, (base.mean - ent) / base.std);  // secondary info
       let uniq = uniqueCharCount(window);
-      // Primary quality: unique char count (lower = more recognizable)
-      let quality = uniq;
-      allResults.push({W, pos, ent, z, uniq, quality});
-      if (quality < bestQuality) {
+      let rarity = expected - uniq;
+      let quality = rarity;  // quality = rarity (higher = better)
+      allResults.push({W, pos, ent, uniq, expectedUnique: expected, rarity, quality});
+      if (quality > bestQuality) {
         bestQuality = quality;
-        bestZ = z;
+        bestRarity = rarity;
         bestW = W;
         bestPos = pos;
         bestEntropy = ent;
         bestUnique = uniq;
+        bestExpected = expected;
       }
     }
   }
-  return {bestZ, bestW, bestPos, bestEntropy, bestUnique, bestQuality, allResults};
+  return {bestRarity, bestW, bestPos, bestEntropy, bestUnique, bestExpected, bestQuality, allResults};
 }
 
 // ─── Color Map ─────────────────────────────────────────────────────────────
@@ -1105,8 +1108,8 @@ function renderFingerprintGrid(chars, W) {
 // ─── Radial Fingerprint View ────────────────────────────────────────────────
 // Arranges characters in a circle.  Each char sits at angle = 360/W * i,
 // radius ~80 px from center, with a colored circular badge behind it.
-// Center shows "W=<W>, z=<zScore>".
-function renderFingerprintRadial(chars, W, zScore) {
+// Center shows "W=<W>, uniq=<uniqueChars>/<W>".
+function renderFingerprintRadial(chars, W, uniqueChars) {
   let n = chars.length;
   let radius = 80;
   let container = 220; // matches .fingerprint-radial CSS
@@ -1132,8 +1135,8 @@ function renderFingerprintRadial(chars, W, zScore) {
       ';animation-delay:' + delay + 's;" title="' + c + '">' + c + '</div>';
   }
   // center label — unique chars primary
-  let uniq = (zScore !== undefined && zScore !== null) ? zScore : '—';
-  html += '<div class="radial-center"><span>W=<span class="big">' + W + '</span></span><span>uniq=' + uniq + '</span></div>';
+  let uniq = (uniqueChars !== undefined && uniqueChars !== null) ? uniqueChars : '—';
+  html += '<div class="radial-center"><span>W=<span class="big">' + W + '</span></span><span>uniq=' + uniq + '/' + W + '</span></div>';
   html += '</div>';
   return html;
 }
@@ -1335,7 +1338,7 @@ window.generateSection2 = function() {
   let best = null;   // best entropy outlier NPUB
   let second = null;  // second best for comparison
   let secondNpub = null; // any other sat NPUB for Key B
-  let bestZ = 0;
+  let bestRarity = -1;
 
   function grindLoop() {
     let elapsed = Date.now() - startTime;
@@ -1351,11 +1354,11 @@ window.generateSection2 = function() {
         // Immediately scan this candidate for unique-char outlier
         let dp = npub.substring(5);
         let scan = runEntropyScanner(dp, minW);
-        if (!best || scan.bestQuality < best.scan.bestQuality) {
+        if (!best || scan.bestQuality > best.scan.bestQuality) {
           // Old best becomes second
           if (best) second = best;
           best = { npub, scan };
-          bestZ = scan.bestZ;
+          bestRarity = scan.bestRarity;
         } else if (!second || scan.bestQuality < second.scan.bestQuality) {
           second = { npub, scan };
         }
@@ -1376,7 +1379,7 @@ window.generateSection2 = function() {
     if (vfill) {
       vfill.style.height = Math.min(100, (elapsed / TIMEBOX_MS) * 100) + '%';
       vtime.textContent = secs + 's';
-      if (bestZ > 0) vlabel.textContent = '⛏';
+      if (bestRarity > 0) vlabel.textContent = '⛏';
       else vlabel.textContent = '⏳';
     }
 
@@ -1385,18 +1388,18 @@ window.generateSection2 = function() {
     html += '<div class="grind-stats">';
     html += '<div class="grind-stat"><span class="grind-num">' + count.toLocaleString() + '</span><span class="grind-lbl">keys generated</span></div>';
     html += '<div class="grind-stat"><span class="grind-num">' + satCount + '</span><span class="grind-lbl">"sat" matches</span></div>';
-    if (bestZ > 0 || best) {
-      html += '<div class="grind-stat"><span class="grind-num">' + best.scan.bestUnique + '</span><span class="grind-lbl">unique chars (lower = better)</span></div>';
-      html += '<div class="grind-stat"><span class="grind-num">z=' + best.scan.bestZ.toFixed(2) + '</span><span class="grind-lbl">z-score (secondary)</span></div>';
+    if (bestRarity > 0 || best) {
+      html += '<div class="grind-stat"><span class="grind-num">' + best.scan.bestUnique + '/' + best.scan.bestW + '</span><span class="grind-lbl">unique chars (fewer = better)</span></div>';
+      html += '<div class="grind-stat"><span class="grind-num">r=' + best.scan.bestRarity.toFixed(2) + '</span><span class="grind-lbl">rarity (higher = better)</span></div>';
     } else {
       html += '<div class="grind-stat"><span class="grind-num">—</span><span class="grind-lbl">best quality</span></div>';
     }
     html += '</div>';
     html += '<div class="progress-bar"><div class="fill" style="width:' + pct + '%"></div></div>';
-    if (bestZ > 0) {
-      html += '<div class="grind-explain">Best so far: ' + best.scan.bestUnique + ' unique chars in W=' + best.scan.bestW + ' (z=' + bestZ.toFixed(1) + ' secondary). Fewer unique chars = more recognizable. Still grinding…</div>';
+    if (bestRarity > 0) {
+      html += '<div class="grind-explain">Best so far: ' + best.scan.bestUnique + ' unique chars in W=' + best.scan.bestW + ' (rarity=' + bestRarity.toFixed(2) + '). Fewer unique chars = more recognizable. Still grinding…</div>';
     } else {
-      html += '<div class="grind-explain">Grinding keys looking for "sat" matches. Each match is scanned for low-entropy patterns (W≥' + minW + '). The longer we grind, the better the outlier.</div>';
+      html += '<div class="grind-explain">Grinding keys looking for "sat" matches. Each match is scanned for low-diversity patterns (W≥' + minW + '). The longer we grind, the better the outlier.</div>';
     }
     html += '</div>';
     document.getElementById('s2-result').innerHTML = html;
@@ -1406,16 +1409,16 @@ window.generateSection2 = function() {
     } else {
       // Time's up — use whatever we have
       let keyB = second ? second.npub : (secondNpub || best.npub);
-      finishSection2(best.npub, keyB, word, count, bestZ, satCount);
+      finishSection2(best.npub, keyB, word, count, bestRarity, satCount);
     }
   }
 
-  function finishSection2(npub1, npub2, word, totalTried, finalZ, totalSats) {
+  function finishSection2(npub1, npub2, word, totalTried, finalRarity, totalSats) {
     state.sec2keys = { npub1, npub2, word };
     state.aliceNpub = npub1;
     state.aliceWord = word;
     let grid = Math.sqrt(minW);
-    let html = '<div class="status-msg found">✓ Mining complete — ' + totalTried.toLocaleString() + ' keys, ' + totalSats + ' "sat" matches. Best pattern: ' + best.scan.bestUnique + ' unique chars in W=' + best.scan.bestW + ' (' + Math.sqrt(best.scan.bestW) + '×' + Math.sqrt(best.scan.bestW) + ' grid), z=' + best.scan.bestZ.toFixed(2) + '</div>';
+    let html = '<div class="status-msg found">✓ Mining complete — ' + totalTried.toLocaleString() + ' keys, ' + totalSats + ' "sat" matches. Best pattern: ' + best.scan.bestUnique + ' unique chars in W=' + best.scan.bestW + ' (' + Math.sqrt(best.scan.bestW) + '×' + Math.sqrt(best.scan.bestW) + ' grid), rarity=' + best.scan.bestRarity.toFixed(2) + '</div>';
     html += '<div class="grind-summary">';
     html += '<div class="grind-stat-inline">' + totalTried.toLocaleString() + ' keys in 60s</div>';
     html += '<div class="grind-stat-inline">' + totalSats + ' contained "sat"</div>';
@@ -1425,7 +1428,7 @@ window.generateSection2 = function() {
     html += '<div><div class="card-label">Key A (best unique-char outlier)</div><div class="npub-display">npub1' + highlightNpub(npub1, word, 'vanity') + '</div></div>';
     html += '<div><div class="card-label">Key B (comparison)</div><div class="npub-display">npub1' + highlightNpub(npub2, word, 'vanity') + '</div></div>';
     html += '</div>';
-    html += '<div class="note">Both contain "' + word + '" — but Key A has a ' + Math.sqrt(best.scan.bestW) + '×' + Math.sqrt(best.scan.bestW) + ' window of unusually low entropy. An attacker would need to replicate Alice\'s EXACT pattern, not just find any low-entropy NPUB. Click Next to see the pattern.</div>';
+    html += '<div class="note">Both contain "' + word + '" — but Key A has a ' + Math.sqrt(best.scan.bestW) + '×' + Math.sqrt(best.scan.bestW) + ' window with unusually few unique characters (rarity=' + best.scan.bestRarity.toFixed(2) + '). An attacker would need to replicate Alice\'s EXACT pattern, not just find any low-diversity NPUB. Click Next to see the pattern.</div>';
     document.getElementById('s2-result').innerHTML = html;
     document.getElementById('sec2-slider-box').style.display = '';
     btn.textContent = 'Regenerate';
@@ -1464,8 +1467,8 @@ function runSection3() {
   html += '<div class="scanner-info">';
   html += '<div><span class="label">Window size (W):</span> <span class="value">' + result.bestW + '</span> (' + Math.sqrt(result.bestW) + '×' + Math.sqrt(result.bestW) + ' grid)</div>';
   html += '<div><span class="label">Unique characters:</span> <span class="value">' + result.bestUnique + '</span> out of ' + result.bestW + ' (fewer = more recognizable — PRIMARY metric)</div>';
-  html += '<div><span class="label">Z-score:</span> <span class="value">' + result.bestZ.toFixed(2) + '</span> (secondary — statistical rarity)</div>';
-  html += '<div><span class="label">Entropy:</span> <span class="value">' + result.bestEntropy.toFixed(3) + '</span> bits (expected ~' + BASELINE[result.bestW].mean + ')</div>';
+  html += '<div><span class="label">Rarity:</span> <span class="value">' + result.bestRarity.toFixed(2) + '</span> (expected ~' + result.bestExpected.toFixed(1) + ' unique, actual ' + result.bestUnique + ' → rarity = ' + result.bestExpected.toFixed(1) + ' − ' + result.bestUnique + ' = ' + result.bestRarity.toFixed(2) + ')</div>';
+  html += '<div><span class="label">Entropy:</span> <span class="value">' + result.bestEntropy.toFixed(3) + '</span> bits (informational)</div>';
   html += '<div><span class="label">Winning chars:</span> <span class="value">' + winnerChars + '</span></div>';
   html += '</div>';
   html += '<div class="card-label">NPUB with winning section highlighted:</div>';

@@ -89,8 +89,8 @@ The 2D grid takes less space, creates a visual SHAPE, and is much easier to comp
 </div>
 
 <div style="font-size:12px;color:#8b949e;margin-top:10px">
-Short W (2×2, 3×3) = tiny grid, very simple shape, lower z-score.<br>
-Long W (4×4, 5×5) = larger grid, more complex shape, higher z-score.<br>
+Short W (2×2, 3×3) = tiny grid, very simple shape, lower rarity.<br>
+Long W (4×4, 5×5) = larger grid, more complex shape, higher rarity.<br>
 The grid SIZE encodes the fingerprint strength. Bigger grid = more work invested.
 </div>
 </div>
@@ -106,7 +106,7 @@ The grid SIZE encodes the fingerprint strength. Bigger grid = more work invested
 
 <div class="fp-card" style="margin:10px auto">
 <div class="fp-grid" id="alice-card" style="grid-template-columns:repeat(4,1fr)"></div>
-<div class="fp-z" style="color:#f0883e">z = 6.31 (EXTREME)</div>
+<div class="fp-z" style="color:#f0883e">uniq=2/16 (EXTREME)</div>
 </div>
 
 <div style="font-size:11px;color:#8b949e;margin-top:8px;text-align:center">
@@ -122,7 +122,7 @@ Alice's card: red-teal checkerboard<br>
 
 <div class="fp-card" style="margin:10px auto">
 <div class="fp-grid" id="attacker-card" style="grid-template-columns:repeat(3,1fr)"></div>
-<div class="fp-z" style="color:#f39c12">z = 5.84 (STRONG)</div>
+<div class="fp-z" style="color:#f39c12">uniq=3/9 (STRONG)</div>
 </div>
 
 <div style="font-size:11px;color:#8b949e;margin-top:8px;text-align:center">
@@ -177,7 +177,7 @@ Attacker 2 = green-purple block<br>
 <div>
 <div style="font-size:16px;color:#3fb950;font-weight:bold">meshmate</div>
 <div style="font-size:11px;color:#8b949e;margin-top:2px">npub1meshmate...qpqpqpqpqpqpqpqp...e6mua7l</div>
-<div style="font-size:10px;color:#d2a8ff;margin-top:4px">PoW: z=6.31 | Fingerprint: 4×4 verified ✓</div>
+<div style="font-size:10px;color:#d2a8ff;margin-top:4px">PoW: uniq=2/16 | Fingerprint: 4×4 verified ✓</div>
 </div>
 <div style="margin-left:auto;font-size:20px;color:#3fb950">✓</div>
 </div>
@@ -189,7 +189,7 @@ Attacker 2 = green-purple block<br>
 <div>
 <div style="font-size:16px;color:#f85149;font-weight:bold">meshmate</div>
 <div style="font-size:11px;color:#8b949e;margin-top:2px">npub1meshmate...rzrzrzrzrz...e6mua7l</div>
-<div style="font-size:10px;color:#f85149;margin-top:4px">PoW: z=5.84 | Fingerprint: 3×3 DOES NOT MATCH ⚠</div>
+<div style="font-size:10px;color:#f85149;margin-top:4px">PoW: uniq=3/9 | Fingerprint: 3×3 DOES NOT MATCH ⚠</div>
 </div>
 <div style="margin-left:auto;font-size:20px;color:#f85149">⚠</div>
 </div>

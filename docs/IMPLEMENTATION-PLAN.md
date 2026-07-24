@@ -97,7 +97,7 @@ offset integer `d`.
    - bech32-encode result → check for vanity pattern
    - On match: optionally scan for entropy outlier (ADR-003/004)
 6. Server returns result:
-   - Found: { offset: d, vanity_npub: "npub1...", z_score: 4.2, ... }
+   - Found: { offset: d, vanity_npub: "npub1...", unique_chars: 3, rarity: 7.3, ... }
    - Not found (timeout): { status: "timeout", tried: N, rate: "X/s" }
    - Payment required: { invoice: "lnbc...", cashu_token: "..." }
 7. Client verifies: new_npub == bech32((k + d) mod n · G)
@@ -133,7 +133,7 @@ interface GrindNpubParams {
   vanity_pattern: string;    // Desired vanity word/prefix in the NPUB
   options?: {
     suffix?: string;          // Also match suffix pattern
-    min_z_score?: number;     // Minimum entropy outlier z-score (ADR-003)
+    min_unique_chars?: number; // Minimum unique char count rarity (ADR-009)
     min_window_size?: number; // Minimum fingerprint window size (16|25|36|49)
     timeout_secs?: number;    // Max grind time (default: 300)
     max_cost_sats?: number;   // Max willing to pay (for paid grinding)
@@ -145,7 +145,8 @@ interface GrindNpubResult {
   // When found:
   offset?: string;            // The offset d (as decimal string, can be large)
   vanity_npub?: string;       // The resulting NPUB (npub1...)
-  z_score?: number;           // Entropy outlier z-score (if scanned)
+  unique_chars?: number;       // Unique chars in best window (if scanned)
+  rarity?: number;             // Rarity score = expectedUnique - uniqueChars (ADR-009)
   fingerprint_window?: {
     size: number;             // W value (16, 25, 36, 49)
     position: number;          // Position in the bech32 data part
@@ -197,7 +198,7 @@ server/
 │   ├── grinding/
 │   │   ├── offset.ts            # Offset math: P + d·G, bech32 encoding
 │   │   ├── vanity-check.ts      # Pattern matching (prefix, suffix, contains)
-│   │   ├── entropy-scanner.ts   # Multi-scale z-score outlier scan (ADR-003)
+│   │   ├── entropy-scanner.ts   # Multi-scale unique char count scan (ADR-009)
 │   │   └── verify.ts            # Verify offset: check P + d·G → expected NPUB
 │   │
 │   ├── payment/
@@ -238,7 +239,7 @@ server/
 ├── tests/
 │   ├── offset-math.test.ts       # Verify offset grinding math
 │   ├── backend-dispatch.test.ts # Test fallback chain
-│   ├── entropy-scanner.test.ts  # Verify z-score scanning
+│   ├── entropy-scanner.test.ts  # Verify unique char count scanning
 │   ├── payment.test.ts           # Cashu/LN integration tests
 │   └── e2e-grind.test.ts         # End-to-end grind → verify
 │
@@ -368,7 +369,7 @@ export const grindNpubTool = {
         type: 'object',
         properties: {
           suffix: { type: 'string' },
-          min_z_score: { type: 'number' },
+          min_unique_chars: { type: 'number' },
           min_window_size: { type: 'number' },
           timeout_secs: { type: 'number' },
           max_cost_sats: { type: 'number' },
@@ -493,7 +494,7 @@ interface GrindParams {
   maxOffset: bigint;        // limit
   timeoutMs: number;
   scanEntropy: boolean;     // whether to run entropy scanner on matches
-  minZScore: number;
+  minUniqueChars: number;
   minWindowSize: number;
 }
 
@@ -501,7 +502,8 @@ interface GrindResult {
   found: boolean;
   offset?: bigint;
   vanityNpub?: string;
-  zScore?: number;
+  uniqueChars?: number;       // Unique chars in best window
+  rarity?: number;             // Rarity score (expectedUnique - uniqueChars)
   fingerprint?: FingerprintInfo;
   keysTried: number;
   durationMs: number;
@@ -681,18 +683,18 @@ pub json: bool,
     long = "scan-entropy",
     required = false,
     default_value_t = false,
-    help = "After finding vanity match, scan for entropy outlier (ADR-003/004). \
-            Returns z-score, window size, and quality."
+    help = "After finding vanity match, scan for entropy outlier (ADR-009). \
+            Returns unique char count, rarity, and window size."
 )]
 pub scan_entropy: bool,
 
 #[arg(
-    long = "min-z-score",
+    long = "min-unique-chars",
     required = false,
-    default_value_t = 0.0,
-    help = "Minimum z-score for entropy outlier acceptance. Only with --scan-entropy."
+    default_value_t = 0,
+    help = "Minimum unique char count for entropy acceptance. Only with --scan-entropy."
 )]
-pub min_z_score: f64,
+pub min_unique_chars: u32,
 
 #[arg(
     long = "timeout",
@@ -741,8 +743,8 @@ class RanaBackend implements GrindBackend {
     ];
 
     if (params.scanEntropy) {
-      args.push('--scan-entropy', '--min-z-score',
-                String(params.minZScore));
+      args.push('--scan-entropy', '--min-unique-chars',
+                String(params.minUniqueChars));
     }
 
     if (params.suffixPatterns?.length) {
@@ -767,7 +769,8 @@ class RanaBackend implements GrindBackend {
                   found: true,
                   offset: BigInt(result.offset),
                   vanityNpub: result.npub,
-                  zScore: result.z_score,
+                  uniqueChars: result.unique_chars,
+                  rarity: result.rarity,
                   fingerprint: result.fingerprint,
                   keysTried: result.keys_tried || 0,
                   durationMs: result.duration_ms || 0,
@@ -1313,14 +1316,15 @@ Add entropy scanning to rana's offset grinding mode (Rust):
 // In rana fork: after finding vanity match
 if parsed_args.scan_entropy {
     let data = npub.strip_prefix("npub1").unwrap_or(&npub);
-    let scan_result = entropy::multi_scale_scan(data, parsed_args.min_z_score);
+    let scan_result = entropy::multi_scale_scan(data, parsed_args.min_unique_chars);
     if let Some(scan) = scan_result {
         // Output with entropy info
         println!("{}", json!({
             "offset": d.to_string(),
             "npub": npub,
             "pattern": matched_pattern,
-            "z_score": scan.z_score,
+            "unique_chars": scan.unique_chars,
+            "rarity": scan.rarity,
             "fingerprint": {
                 "window_size": scan.window_size,
                 "position": scan.position,
@@ -1352,7 +1356,7 @@ tests/
 │   - No backends → returns browser instructions
 │
 ├── entropy-scanner.test.ts
-│   - Known NPUBs produce expected z-scores
+│   - Known NPUBs produce expected unique char counts
 │   - Window sizes 16, 25, 36, 49 all scanned
 │   - Quality metric matches demo/index.html output
 │

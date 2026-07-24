@@ -2,7 +2,7 @@
 
 **Status:** Accepted  
 **Date:** 2026-07-24  
-**Supersedes:** ADR-003 (partially — Z-score demoted to secondary)
+**Supersedes:** ADR-003 (Z-score replaced entirely)
 
 ## Context
 
@@ -20,7 +20,7 @@ Replace Z-score with **unique character count** as the primary raindrop/recogniz
 
 - **Lower unique count = rarer = more recognizable**
 - Scanner ranks windows by unique char count ascending (fewest = best)
-- Z-score retained as **secondary** display info for statistical context
+- Z-score is **no longer used** — unique char count fully replaces it
 
 ### Expected Unique Characters (Occupancy Distribution)
 

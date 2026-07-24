@@ -213,12 +213,7 @@ function ent(window) {
   let h=0; for(const c in f){const p=f[c]/window.length; h-=p*Math.log2(p);} return h;
 }
 
-// Baseline stats (approximate from our data)
-const BASELINE = {
-3:{m:0.89,s:0.23},4:{m:1.35,s:0.27},5:{m:1.66,s:0.26},6:{m:1.91,s:0.22},
-7:{m:2.13,s:0.20},8:{m:2.32,s:0.19},9:{m:2.48,s:0.18},10:{m:2.63,s:0.18},
-12:{m:2.87,s:0.17},14:{m:3.07,s:0.16},16:{m:3.24,s:0.15},18:{m:3.38,s:0.15},20:{m:3.51,s:0.14}
-};
+// Window sizes scanned
 const WSIZES = [3,4,5,6,7,8,9,10,12,14,16,18,20];
 
 function uniqueCount(window) {
@@ -243,20 +238,26 @@ function uniqueColor(uc, w) {
   return '#c0392b';                     // extreme
 }
 
-// Z-score retained as secondary metric
-function zScore(h, w) {
-  const b = BASELINE[w]; if(!b) return 0;
-  return Math.max(0,(b.m - h) / b.s);
+// Rarity: expected unique chars minus actual unique chars (higher = rarer = more recognizable)
+// Expected unique for 16-symbol alphabet, window size w: ~10.3 for w=16 (occupancy problem)
+const EXPECTED_UNIQUE = {
+  3: 2.7, 4: 3.5, 5: 4.1, 6: 4.6, 7: 5.1, 8: 5.5, 9: 5.9, 10: 6.2,
+  12: 6.8, 14: 7.3, 16: 7.7, 18: 8.1, 20: 8.4
+};
+
+function rarity(uc, w) {
+  const exp = EXPECTED_UNIQUE[w] || w * 0.5;
+  return Math.max(0, exp - uc);
 }
 
-function zColor(z) {
-  if(z < 1) return '#2d3436';
-  if(z < 2) return '#1a5276';
-  if(z < 3) return '#2e86c1';
-  if(z < 4) return '#5dade2';
-  if(z < 5) return '#f39c12';
-  if(z < 6) return '#e67e22';
-  return '#c0392b';
+function rarityColor(r) {
+  if(r < 1) return '#2d3436';   // normal
+  if(r < 2) return '#1a5276';   // mild
+  if(r < 3) return '#2e86c1';   // notable
+  if(r < 4) return '#5dade2';   // moderate
+  if(r < 5) return '#f39c12';   // strong
+  if(r < 6) return '#e67e22';   // very strong
+  return '#c0392b';             // extreme
 }
 
 // === 2D HEATMAP ===
@@ -274,8 +275,8 @@ function drawHeatmap(id, data) {
       } else {
         const win = data.slice(pos, pos+w);
         const uc = uniqueCount(win);
-        const z = zScore(ent(win), w);
-        html += `<div class="hm-cell" style="background:${uniqueColor(uc, w)}" title="W${w} pos${pos}: ${uc} unique chars (z=${z.toFixed(1)})"></div>`;
+        const r = rarity(uc, w);
+        html += `<div class="hm-cell" style="background:${rarityColor(r)}" title="W${w} pos${pos}: ${uc} unique chars (rarity=${r.toFixed(1)})"></div>`;
       }
     }
   }
@@ -314,9 +315,9 @@ function drawWinner(id, data, wVal, pos, label) {
   html += '</div>';
   
   const h = ent(win);
-  const z = zScore(h, wVal);
   const uc = uniqueCount(win);
-  html += `<div style="font-size:11px;color:#d2a8ff;margin-top:4px">Unique chars: ${uc} <span style="font-size:10px;color:#8b949e;margin-left:6px">entropy: ${h.toFixed(2)}, z=${z.toFixed(2)}</span></div>`;
+  const r = rarity(uc, wVal);
+  html += `<div style="font-size:11px;color:#d2a8ff;margin-top:4px">Unique chars: ${uc} <span style="font-size:10px;color:#8b949e;margin-left:6px">rarity: ${r.toFixed(2)} (expected ~${(EXPECTED_UNIQUE[wVal]||0).toFixed(1)})</span></div>`;
   
   el.innerHTML = html;
 }
@@ -337,15 +338,15 @@ function drawSeismo(id, data) {
   for(let pos=0; pos<data.length; pos++) {
     let minUC = 99;
     let bestW = 0;
-    let bestZ = 0;
+    let bestR = 0;
     for(const w of WSIZES) {
       if(pos + w > data.length) continue;
       const win = data.slice(pos, pos+w);
       const uc = uniqueCount(win);
-      const z = zScore(ent(win), w);
-      if(uc < minUC) { minUC = uc; bestW = w; bestZ = z; }
+      const r = rarity(uc, w);
+      if(uc < minUC) { minUC = uc; bestW = w; bestR = r; }
     }
-    posData.push({pos, uc: minUC, w: bestW, z: bestZ});
+    posData.push({pos, uc: minUC, w: bestW, r: bestR});
   }
   
   let html = '<div style="display:flex;align-items:flex-end;gap:1px;height:80px;">';
@@ -357,7 +358,7 @@ function drawSeismo(id, data) {
     else if(pd.w <= 12) color = '#f39c12';
     else color = '#c0392b';
     
-    html += `<div style="width:12px;height:${heightPct}%;background:${color};border-radius:2px 2px 0 0;min-height:2px;" title="pos ${pd.pos}: ${pd.uc} unique chars (W=${pd.w}, z=${pd.z.toFixed(1)})"></div>`;
+    html += `<div style="width:12px;height:${heightPct}%;background:${color};border-radius:2px 2px 0 0;min-height:2px;" title="pos ${pd.pos}: ${pd.uc} unique chars (W=${pd.w}, rarity=${pd.r.toFixed(1)})"></div>`;
   }
   html += '</div>';
   el.innerHTML = html;

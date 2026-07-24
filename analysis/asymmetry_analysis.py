@@ -72,15 +72,19 @@ print("--- APPROACH 3: SPLIT (minimal: just 'low entropy', no charset restrictio
 print("  Anti-phish section = ANY low-entropy anomaly, discovered by scanner")
 print("  No charset constraint at all\n")
 
-# From our z-score analysis
-for z_thresh, p_outlier_label in [(3.0,"~3%"),(4.0,"~1%"),(5.0,"~0.3%"),(6.0,"~0.1%")]:
+# Unique char count rarity thresholds (rarity = expected_unique - actual_unique)
+# For bech32 (32 symbols), expected unique in 16-char window ~ 14.3
+# Lower unique count = higher rarity = rarer pattern
+for max_unique, label in [(2,"extreme"),(3,"very strong"),(4,"strong"),(5,"notable")]:
     p_v = 15 * (1/32)**8
-    p_outlier = 10**(-z_thresh*0.7)  # rough from our data
+    # P(window of 16 chars has <= max_unique distinct symbols from 32-symbol alphabet)
+    # Approximate: very rough probability based on occupancy
+    p_outlier = (max_unique / 32) ** 16 * 32  # rough upper bound
     p_alice = p_v * p_outlier
     if p_alice < 1e-300: continue
     alice_cost = 1/p_alice
     
-    print(f"  z>{z_thresh}: Alice~2^{math.log2(alice_cost):.0f}, "
+    print(f"  unique<={max_unique} ({label}): Alice~2^{math.log2(alice_cost):.0f}, "
           f"Attacker must match SPECIFIC anomaly (much harder)")
 
 # === THE REAL INSIGHT ===

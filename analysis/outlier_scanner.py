@@ -11,12 +11,26 @@ def entropy(s):
         p = c/n; h -= p*math.log2(p)
     return h
 
+def unique_chars(s):
+    """Count distinct characters in a string."""
+    return len(set(s))
+
 def sim():
     return ''.join(random.choice(BECH32) for _ in range(58))
 
 WINDOW_SIZES = [3,4,5,6,7,8,9,10,12,14,16,18,20]
 
-# === BASELINE ===
+# Expected unique chars for 16-symbol alphabet (hex), window size w
+# Formula: E[U] = k * (1 - ((k-1)/k)^n) where k=16, n=window size
+# For bech32 (32 symbols), we compute empirically
+SYMBOLS = 32  # bech32 alphabet size
+def expected_unique(w, k=SYMBOLS):
+    """Expected number of unique symbols in a window of size w, given k possible symbols."""
+    return k * (1 - ((k - 1) / k) ** w)
+
+EXPECTED = {w: expected_unique(w) for w in WINDOW_SIZES}
+
+# === BASELINE (still useful for reference) ===
 t0 = time.time()
 print("=== BUILDING BASELINE (20k samples) ===")
 baselines = {w: [] for w in WINDOW_SIZES}
@@ -24,48 +38,45 @@ N = 20000
 for _ in range(N):
     d = sim()
     for w in WINDOW_SIZES:
-        min_h = min(entropy(d[i:i+w]) for i in range(58-w+1))
-        baselines[w].append(min_h)
+        min_uc = min(unique_chars(d[i:i+w]) for i in range(58-w+1))
+        baselines[w].append(min_uc)
 print(f"Done in {time.time()-t0:.1f}s\n")
 
-stats = {}
+print(f"{'Win':>4} {'E[U]':>6} {'Mean':>6} {'p5':>6} {'p1':>6}")
 for w in WINDOW_SIZES:
     vals = sorted(baselines[w])
     n = len(vals)
     mean = sum(vals)/n
-    std = (sum((v-mean)**2 for v in vals)/n)**0.5
-    stats[w] = {'mean':mean, 'std':std if std > 0.001 else 0.001}
-
-print(f"{'Win':>4} {'Mean':>6} {'Std':>6} {'p5':>6} {'p1':>6}")
-for w in WINDOW_SIZES:
-    s = stats[w]
-    vals = sorted(baselines[w])
     p5 = vals[int(len(vals)*0.05)]
     p1 = vals[int(len(vals)*0.01)]
-    print(f"{w:4d} {s['mean']:6.2f} {s['std']:6.3f} {p5:6.2f} {p1:6.2f}")
+    print(f"{w:4d} {EXPECTED[w]:6.2f} {mean:6.2f} {p5:6.2f} {p1:6.2f}")
 
-# === OUTLIER SCORING (always returns something) ===
+# === OUTLIER SCORING (unique char count + rarity) ===
 def find_outlier(data):
-    best_z = -999.0  # always finds something
+    """Find the window with the fewest unique characters (highest rarity).
+    rarity = expected_unique - actual_unique (higher = rarer = more recognizable)
+    """
+    best_rarity = -999.0  # always finds something
     best = None
     for w in WINDOW_SIZES:
         if w > len(data): continue
-        s = stats[w]
+        exp = EXPECTED[w]
         for i in range(len(data) - w + 1):
-            h = entropy(data[i:i+w])
-            z = (s['mean'] - h) / s['std']
-            if z > best_z:
-                best_z = z
-                best = {'w':w, 'pos':i, 'entropy':h, 'z':z, 'data':data[i:i+w]}
+            uc = unique_chars(data[i:i+w])
+            r = exp - uc  # rarity
+            if r > best_rarity:
+                best_rarity = r
+                best = {'w':w, 'pos':i, 'unique':uc, 'rarity':r,
+                        'expected':exp, 'data':data[i:i+w]}
     return best
 
 # === DISTRIBUTION ===
-print("\n=== OUTLIER z-SCORE DISTRIBUTION (10k random) ===\n")
+print("\n=== OUTLIER RARITY DISTRIBUTION (10k random) ===\n")
 scores = []
 for _ in range(10000):
     d = sim()
     info = find_outlier(d)
-    scores.append(info['z'])
+    scores.append(info['rarity'])
 
 scores.sort()
 n = len(scores)
@@ -77,7 +88,7 @@ print(f"  p99.9:  {scores[min(int(n*0.999), n-1)]:.2f}")
 print(f"  max:    {scores[-1]:.2f}")
 
 # === WHICH WINDOW SIZES WIN? ===
-print("\n=== WHICH WINDOW SIZE PRODUCES MAX OUTLIER? ===\n")
+print("\n=== WHICH WINDOW SIZE PRODUCES MAX RARITY? ===\n")
 window_wins = Counter()
 for _ in range(10000):
     d = sim()
@@ -94,18 +105,18 @@ print("\n=== EXAMPLE OUTLIERS ===\n")
 for label, target_pct in [("typical (p50)", 0.50), ("notable (p90)", 0.90), 
                             ("rare (p99)", 0.99), ("extreme (max)", None)]:
     if target_pct:
-        target_z = scores[int(n * target_pct)]
+        target_r = scores[int(n * target_pct)]
     else:
-        target_z = scores[-1]
+        target_r = scores[-1]
     
     for _ in range(200000):
         d = sim()
         info = find_outlier(d)
         if target_pct:
-            if abs(info['z'] - target_z) < 0.15:
+            if abs(info['rarity'] - target_r) < 0.15:
                 break
         else:
-            if info['z'] > target_z - 0.2:
+            if info['rarity'] > target_r - 0.2:
                 break
     else:
         info = find_outlier(d)
@@ -113,28 +124,26 @@ for label, target_pct in [("typical (p50)", 0.50), ("notable (p90)", 0.90),
     pat = info['data']
     distinct = len(set(pat))
     dstr = 'npub1' + d
-    print(f"{label}: z={info['z']:.2f} | w={info['w']} pos={info['pos']} H={info['entropy']:.2f}")
+    print(f"{label}: rarity={info['rarity']:.2f} | w={info['w']} pos={info['pos']} "
+          f"unique={info['unique']}/{info['expected']:.1f}")
     print(f"  Pattern: '{pat}' ({distinct} distinct chars)")
-    marker_start = info['pos']
-    marker_end = info['pos'] + info['w']
-    display = dstr[:6] + '...' + dstr[marker_start+5:marker_end+5]
     print(f"  Location in npub: ...{pat}...")
     print()
 
 # === COMPOSITE FINGERPRINT VECTOR ===
-print("=== COMPOSITE FINGERPRINT: z-scores at all scales ===\n")
-header = "  z    " + "".join(f"w={w:<4d}" for w in WINDOW_SIZES)
+print("=== COMPOSITE FINGERPRINT: rarity at all scales ===\n")
+header = "  best " + "".join(f"w={w:<4d}" for w in WINDOW_SIZES)
 print(header)
 for _ in range(10):
     d = sim()
     info = find_outlier(d)
     fp = []
     for w in WINDOW_SIZES:
-        s = stats[w]
-        min_h = min(entropy(d[i:i+w]) for i in range(len(d)-w+1))
-        z = (s['mean'] - min_h) / s['std']
-        fp.append(z)
-    print(f" {info['z']:.1f}  " + "".join(f"{v:5.1f} " for v in fp))
+        exp = EXPECTED[w]
+        min_uc = min(unique_chars(d[i:i+w]) for i in range(len(d)-w+1))
+        r = exp - min_uc
+        fp.append(r)
+    print(f" {info['rarity']:.1f}  " + "".join(f"{v:5.1f} " for v in fp))
 
 # === FEATURE TYPES ===
 print("\n=== WHAT DO OUTLIERS LOOK LIKE? ===\n")
@@ -157,13 +166,13 @@ for t, c in types.most_common():
     print(f"  {t}: {c/100:.1f}%")
 
 # === GRINDING SIMULATION ===
-print("\n=== GRINDING: budget vs best outlier found ===\n")
+print("\n=== GRINDING: budget vs best rarity found ===\n")
 for budget in [10, 100, 1000, 10000]:
-    best_z = 0
+    best_r = -999
     for _ in range(budget):
         d = sim()
         info = find_outlier(d)
-        if info['z'] > best_z:
-            best_z = info['z']
-    print(f"  {budget:>6d} tries -> best z = {best_z:.2f}")
+        if info['rarity'] > best_r:
+            best_r = info['rarity']
+    print(f"  {budget:>6d} tries -> best rarity = {best_r:.2f}")
 

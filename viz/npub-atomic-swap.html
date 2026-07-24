@@ -78,7 +78,7 @@ The offset d is a small integer (~5 bytes). Perfect preimage for an HTLC.<br><br
 
 <div class="flow">
 <div class="step"><div class="step-num">1</div><div class="step-text"><span class="party alice">Seller</span> finds offset d, computes target NPUB, sends <span class="party bob">Buyer</span>: target_npub + h = SHA256(d)</div></div>
-<div class="step"><div class="step-num">2</div><div class="step-text"><span class="party bob">Buyer</span> verifies: target_npub contains "meshmate"? Has high z-score? <b>(can verify WITHOUT knowing d)</b></div></div>
+<div class="step"><div class="step-num">2</div><div class="step-text"><span class="party bob">Buyer</span> verifies: target_npub contains "meshmate"? Has high rarity (few unique chars)? <b>(can verify WITHOUT knowing d)</b></div></div>
 <div class="step"><div class="step-num">3</div><div class="step-text"><span class="party bob">Buyer</span> creates Bitcoin script: "pay seller IF they reveal preimage of h, OR refund buyer after 48h"</div></div>
 <div class="step"><div class="step-num">4</div><div class="step-text"><span class="party alice">Seller</span> claims BTC by broadcasting d on-chain. <b>d is now public in the witness data.</b></div></div>
 <div class="step"><div class="step-num">5</div><div class="step-text"><span class="party bob">Buyer</span> reads d from blockchain → computes new_nsec → verifies match. Done.</div></div>

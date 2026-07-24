@@ -27,7 +27,7 @@ h2{color:#f0883e;font-size:14px;margin-top:20px;margin-bottom:8px;padding-bottom
 .npub-line .outlier{background:#f0883e22;border-radius:2px;padding:0 1px;font-weight:bold;color:#f0883e}
 .npub-line .vanity{background:#3fb95022;border-radius:2px;padding:0 1px;font-weight:bold;color:#3fb950}
 
-/* Z-score badge */
+/* Rarity badge (class name retained for CSS compatibility) */
 .z-badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:bold}
 .z-low{background:#21262d;color:#8b949e}
 .z-mid{background:#1a2332;color:#58a6ff}
@@ -82,7 +82,7 @@ h2{color:#f0883e;font-size:14px;margin-top:20px;margin-bottom:8px;padding-bottom
     </div>
     <div>
       <div class="scan-label">Unique chars in window:</div>
-      <div class="z-badge z-low">5 unique chars (WEAK) <span style="font-size:10px;color:#8b949e;margin-left:6px">z=1.09</span></div>
+      <div class="z-badge z-low">5 unique chars (WEAK) <span style="font-size:10px;color:#8b949e;margin-left:6px">rarity=5.3</span></div>
     </div>
   </div>
   
@@ -102,7 +102,7 @@ h2{color:#f0883e;font-size:14px;margin-top:20px;margin-bottom:8px;padding-bottom
     </div>
     <div>
       <div class="scan-label">Unique chars in window:</div>
-      <div class="z-badge z-extreme">7 unique chars (EXTREME) <span style="font-size:10px;color:#8b949e;margin-left:6px">z=6.31</span></div>
+      <div class="z-badge z-extreme">7 unique chars (EXTREME) <span style="font-size:10px;color:#8b949e;margin-left:6px">rarity=3.3</span></div>
     </div>
   </div>
   
@@ -122,7 +122,7 @@ h2{color:#f0883e;font-size:14px;margin-top:20px;margin-bottom:8px;padding-bottom
     </div>
     <div>
       <div class="scan-label">Unique chars in window:</div>
-      <div class="z-badge z-high">8 unique chars (STRONG but DIFFERENT) <span style="font-size:10px;color:#8b949e;margin-left:6px">z=5.84</span></div>
+      <div class="z-badge z-high">8 unique chars (STRONG but DIFFERENT) <span style="font-size:10px;color:#8b949e;margin-left:6px">rarity=2.3</span></div>
     </div>
   </div>
   
@@ -196,18 +196,18 @@ const COLORS = {
 const samples = {
   random: {
     npub: 'qpzry9x8gf2tvdw0s3jn54khce6mua7lqpzry9x8gf2tvdw0s3jn54khceu7l',
-    outlier: {pos: 27, w: 5, entropy: 1.37, z: 1.09, pattern: 'duedd'},
+    outlier: {pos: 27, w: 5, entropy: 1.37, rarity: 5.3, pattern: 'duedd'},
     fp: [-0.1,-0.6,0.5,0.0,-0.5,-1.0,-0.1,-0.6,-0.3,-0.2,-0.1,-0.8,-0.8]
   },
   ground: {
     npub: 'qpzry9x8gf2tvdw0apxjawjapqajj2axaj3jn54khce6mua7lqpzry9x8gf2tvd',
-    outlier: {pos: 15, w: 18, entropy: 2.44, z: 6.31, pattern: 'apxjawjapqajj2axaj'},
+    outlier: {pos: 15, w: 18, entropy: 2.44, rarity: 3.3, pattern: 'apxjawjapqajj2axaj'},
     fp: [3.9,2.0,1.1,0.5,0.0,-0.5,-0.9,-0.1,-0.9,-0.4,0.2,6.3,0.4],
     vanity: {pos: 15, len: 8, text: 'apxjawja'}
   },
   attacker: {
     npub: 'qpzry9x8gf2tvdw0s3jn54khce6mmamemeshmatesmeshmlqpzry9x8gf2tvdw',
-    outlier: {pos: 31, w: 16, entropy: 2.50, z: 5.84, pattern: 'smeshmatesmeshml'},
+    outlier: {pos: 31, w: 16, entropy: 2.50, rarity: 2.3, pattern: 'smeshmatesmeshml'},
     fp: [-0.1,1.3,0.5,0.0,-0.5,0.4,-0.1,-0.1,-0.9,-0.2,5.8,0.7,0.9],
     vanity: {pos: 37, len: 8, text: 'meshmate'}
   }
@@ -239,7 +239,7 @@ function renderDetail(id, data) {
   html += `<div class="od-row"><span class="od-label">Position</span><span class="od-val">char ${o.pos}-${o.pos+o.w-1}</span></div>`;
   html += `<div class="od-row"><span class="od-label">Entropy</span><span class="od-val">${o.entropy.toFixed(2)} bits/char</span></div>`;
   html += `<div class="od-row"><span class="od-label">Distinct chars</span><span class="od-val">${new Set(o.pattern).size} of 32</span></div>`;
-  html += `<div class="od-row"><span class="od-label">Z-score</span><span class="od-val">${o.z.toFixed(2)}σ <span style="font-size:10px;color:#8b949e">(secondary)</span></span></div>`;
+  html += `<div class="od-row"><span class="od-label">Rarity</span><span class="od-val">${(10.3 - new Set(o.pattern).size).toFixed(2)} <span style="font-size:10px;color:#8b949e">(expected ~10.3 − ${new Set(o.pattern).size} actual)</span></span></div>`;
   html += '</div>';
   html += `<div style="margin-top:8px"><span class="od-label">Pattern: </span><span class="pattern">${o.pattern}</span></div>`;
   

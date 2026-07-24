@@ -107,7 +107,7 @@ Options:
   --blocks <n>         CUDA blocks (default: auto-detect)
   --threads <n>        Threads per block (default: 256)
   --scan-entropy       Scan for entropy outlier after match
-  --min-z-score <f>    Minimum z-score for entropy acceptance
+  --min-unique <n>     Minimum unique char count for entropy acceptance
   --help               Show this help
 ```
 

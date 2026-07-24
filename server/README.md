@@ -204,7 +204,7 @@ server/
 │   ├── grinding/
 │   │   ├── offset.ts            # Offset math: P + d·G, bech32 encoding
 │   │   ├── vanity-check.ts      # Pattern matching
-│   │   ├── entropy-scanner.ts   # Multi-scale z-score outlier scan
+│   │   ├── entropy-scanner.ts   # Multi-scale unique char count scan
 │   │   └── verify.ts            # Verify offset correctness
 │   ├── payment/
 │   │   ├── pricing.ts           # Cost calculation
@@ -231,7 +231,7 @@ npm test
 Tests cover:
 - Offset math verification (P + d·G correctness)
 - Backend dispatch and fallback chain
-- Entropy scanner z-score computation
+- Entropy scanner unique char count computation
 - Payment pricing and Cashu token handling
 - NIP-04 encryption/decryption roundtrip
 
