@@ -4,10 +4,10 @@
  * Tests:
  *  - Shannon entropy of known strings
  *  - Unique character count
- *  - Z-score computation
- *  - Quality metric
+ *  - Rarity computation (expected_unique − actual_unique)
+ *  - Quality metric (= rarity, higher = better)
  *  - runEntropyScanner: all window sizes scanned
- *  - runEntropyScanner: best window selection
+ *  - runEntropyScanner: best window selection (fewest unique chars)
  *  - runEntropyScanner: matches demo/index.html output
  *  - scanNpub: prefix stripping
  *  - Edge cases: short strings, uniform strings
@@ -16,7 +16,7 @@
 import {
   shannonEntropy,
   uniqueCharCount,
-  computeZScore,
+  computeRarity,
   computeQuality,
   qualityToDb,
   runEntropyScanner,
@@ -98,55 +98,49 @@ test("uniqueCharCount: mixed", () => {
   assert(uniqueCharCount("aabbcc") === 3, "Expected 3 unique chars");
 });
 
-test("computeZScore: zero when entropy equals mean", () => {
-  // For W=16, mean=3.571 → z should be 0 when entropy = mean
-  const z = computeZScore(3.571, 16);
-  assert(approxEqual(z, 0, 1e-6), `Expected ~0, got ${z}`);
+test("computeRarity: zero when unique chars equals expected", () => {
+  // For W=16, expected_unique ≈ 10.34
+  // If actual unique = expected → rarity = 0
+  const r = computeRarity(10.34, 10.34);
+  assert(approxEqual(r, 0, 1e-6), `Expected ~0, got ${r}`);
 });
 
-test("computeZScore: positive when entropy below mean", () => {
-  // For W=16: mean=3.571, std=0.187
-  // entropy = 3.0 → z = (3.571 - 3.0) / 0.187 ≈ 3.053
-  const z = computeZScore(3.0, 16);
-  assert(z > 0, `Expected positive z, got ${z}`);
-  assert(approxEqual(z, (3.571 - 3.0) / 0.187, 1e-6), `Expected ${(3.571 - 3.0) / 0.187}, got ${z}`);
+test("computeRarity: positive when fewer unique chars than expected", () => {
+  // For W=16: expected ≈ 10.34, actual = 3 → rarity = 7.34
+  const r = computeRarity(3, 10.34);
+  assert(r > 0, `Expected positive rarity, got ${r}`);
+  assert(approxEqual(r, 7.34, 1e-6), `Expected 7.34, got ${r}`);
 });
 
-test("computeZScore: clamped to zero when entropy above mean", () => {
-  // Entropy above mean → negative raw z → clamped to 0
-  const z = computeZScore(4.0, 16);
-  assert(z === 0, `Expected 0 (clamped), got ${z}`);
+test("computeRarity: negative when more unique chars than expected (not useful)", () => {
+  // More unique than expected → negative rarity (not a useful fingerprint)
+  const r = computeRarity(15, 10.34);
+  assert(r < 0, `Expected negative rarity, got ${r}`);
 });
 
-test("computeZScore: throws for unknown window size", () => {
-  let threw = false;
-  try {
-    computeZScore(3.0, 99);
-  } catch {
-    threw = true;
-  }
-  assert(threw, "Expected throw for unknown window size 99");
+test("computeQuality: returns rarity (higher = better)", () => {
+  // quality = rarity = expectedUnique - uniqueChars
+  const r = computeRarity(3, 10.34);
+  const q = computeQuality(r);
+  assert(q === r, `Expected quality to equal rarity ${r}, got ${q}`);
 });
 
-test("computeQuality: formula z / uniq³", () => {
-  const q = computeQuality(3.0, 2);
-  assert(approxEqual(q, 3.0 / 8), `Expected ${3.0 / 8}, got ${q}`);
+test("computeQuality: higher rarity for fewer unique chars", () => {
+  const r1 = computeRarity(2, 10.34);
+  const r2 = computeRarity(8, 10.34);
+  const q1 = computeQuality(r1);
+  const q2 = computeQuality(r2);
+  assert(q1 > q2, `Fewer unique chars should give higher quality: ${q1} vs ${q2}`);
 });
 
-test("computeQuality: zero z-score gives zero quality", () => {
-  const q = computeQuality(0, 5);
-  assert(q === 0, `Expected 0, got ${q}`);
-});
-
-test("qualityToDb: zero or negative returns −∞", () => {
+test("qualityToDb: zero or negative returns placeholder", () => {
   assert(qualityToDb(0) === "−∞", `Expected '−∞', got '${qualityToDb(0)}'`);
   assert(qualityToDb(-1) === "−∞", `Expected '−∞', got '${qualityToDb(-1)}'`);
 });
 
-test("qualityToDb: positive value formats correctly", () => {
-  // 10 * log10(10) = 10.0
-  const db = qualityToDb(10);
-  assert(db === "10.0", `Expected '10.0', got '${db}'`);
+test("qualityToDb: positive value returns dB string", () => {
+  const result = qualityToDb(7.34);
+  assert(result === (10 * Math.log10(7.34)).toFixed(1), `Expected '${(10 * Math.log10(7.34)).toFixed(1)}', got '${result}'`);
 });
 
 test("runEntropyScanner: all window sizes scanned", () => {
@@ -160,23 +154,22 @@ test("runEntropyScanner: all window sizes scanned", () => {
   assert(sizes.has(49), "Expected window size 49 in results");
 });
 
-test("runEntropyScanner: all-same-char string gives z-score = mean/std", () => {
-  // All same char → entropy = 0 → z = mean / std
+test("runEntropyScanner: all-same-char string gives uniqueChars = 1", () => {
+  // All same char → 1 unique char → best quality (highest rarity)
   const data = "q".repeat(60);
   const { best } = runEntropyScanner(data, 16);
-  // For W=16: z = 3.571 / 0.187 ≈ 19.096
-  assert(best.bestZ > 0, `Expected positive z, got ${best.bestZ}`);
+  assert(best.bestUnique === 1, `Expected 1 unique char, got ${best.bestUnique}`);
   // The best window should be one of the valid sizes
   assert([16, 25, 36, 49].includes(best.bestW), `Expected valid W, got ${best.bestW}`);
 });
 
-test("runEntropyScanner: best window selection picks highest quality", () => {
+test("runEntropyScanner: best window selection picks fewest unique chars", () => {
   // Mix of repetitive and random
   const data = "qqqqqqqqqqqqqqqq" + "zw0r9y8gf4p7l3d2x6";
   const { best, allResults } = runEntropyScanner(data, 16);
 
-  // Find the best quality in allResults
-  let maxQuality = -1;
+  // Find the maximum quality (= highest rarity = fewest unique chars) in allResults
+  let maxQuality = -Infinity;
   let maxResult: typeof allResults[0] | null = null;
   for (const r of allResults) {
     if (r.quality > maxQuality) {
@@ -214,13 +207,13 @@ test("runEntropyScanner: bestWindow contains the actual substring", () => {
   );
 });
 
-test("runEntropyScanner: high-entropy random string has low z-scores", () => {
-  // A string with all 32 bech32 chars used roughly equally → high entropy → low z
+test("runEntropyScanner: high-entropy random string has more unique chars", () => {
+  // A string with all 32 bech32 chars used roughly equally → many unique chars
   const bech32Chars = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
   const data = bech32Chars + bech32Chars; // 64 chars, all unique
   const { best } = runEntropyScanner(data, 16);
-  // z should be 0 or very small for a high-entropy string
-  assert(best.bestZ < 1, `Expected low z-score for random string, got ${best.bestZ}`);
+  // Best unique should be relatively high (many unique chars = not very recognizable)
+  assert(best.bestUnique >= 8, `Expected >= 8 unique chars for random string, got ${best.bestUnique}`);
 });
 
 test("scanNpub: strips npub1 prefix", () => {
@@ -248,8 +241,8 @@ test("scanNpub: works without prefix", () => {
 test("runEntropyScanner: string too short for any window returns default best", () => {
   const { best, allResults } = runEntropyScanner("abc", 16);
   assert(allResults.length === 0, "Expected 0 results for too-short string");
-  assert(best.bestQuality === -1, "Expected default quality -1");
-  assert(best.bestZ === -1, "Expected default z -1");
+  assert(best.bestQuality === -Infinity, `Expected default quality -Infinity, got ${best.bestQuality}`);
+  assert(best.bestRarity === -1, `Expected default rarity -1, got ${best.bestRarity}`);
 });
 
 test("runEntropyScanner: exactly 16 chars scans only W=16", () => {
@@ -260,39 +253,42 @@ test("runEntropyScanner: exactly 16 chars scans only W=16", () => {
   assert(allResults.length === 1, `Expected 1 result, got ${allResults.length}`);
 });
 
-test("runEntropyScanner: quality matches demo/index.html formula", () => {
-  // Verify the exact formula: quality = z / (uniq³)
+test("runEntropyScanner: quality equals rarity for all windows", () => {
+  // quality = rarity = expectedUnique - uniqueChars
   const data = "qqqqqqqqqqqqqqqqzw0r9y8gf4p7l3d2x6";
   const { allResults } = runEntropyScanner(data, 16);
 
   for (const r of allResults) {
-    const expectedQuality = r.zScore / (r.uniqueChars * r.uniqueChars * r.uniqueChars);
     assert(
-      approxEqual(r.quality, expectedQuality, 1e-12),
-      `Quality mismatch at W=${r.W} pos=${r.pos}: ${r.quality} vs ${expectedQuality}`,
+      r.quality === r.rarity,
+      `Quality should equal rarity at W=${r.W} pos=${r.pos}: ${r.quality} vs ${r.rarity}`,
     );
   }
 });
 
-test("runEntropyScanner: z-score formula matches demo (mean - ent) / std", () => {
+test("runEntropyScanner: rarity = expectedUnique - uniqueChars for all windows", () => {
   const data = "qqqqqqqqqqqqqqqqzw0r9y8gf4p7l3d2x6";
   const { allResults } = runEntropyScanner(data, 16);
 
-  const baselines: Record<number, { mean: number; std: number }> = {
-    16: { mean: 3.571, std: 0.187 },
-    25: { mean: 3.993, std: 0.163 },
-    36: { mean: 4.277, std: 0.138 },
-    49: { mean: 4.468, std: 0.115 },
-  };
-
   for (const r of allResults) {
-    const base = baselines[r.W];
-    const expectedZ = Math.max(0, (base.mean - r.entropy) / base.std);
+    const expectedRarity = r.expectedUnique - r.uniqueChars;
     assert(
-      approxEqual(r.zScore, expectedZ, 1e-9),
-      `Z-score mismatch at W=${r.W} pos=${r.pos}: ${r.zScore} vs ${expectedZ}`,
+      approxEqual(r.rarity, expectedRarity, 1e-9),
+      `Rarity mismatch at W=${r.W} pos=${r.pos}: ${r.rarity} vs ${expectedRarity}`,
     );
   }
+});
+
+test("runEntropyScanner: repetitive string beats random string (fewer unique chars)", () => {
+  // A string with only 2 chars should beat a string with many chars
+  const repetitive = "qpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqp";
+  const randomish = "qpzry9x8gf2tvdw0s3jn54khce6mua7lqpzry9x8gf2tvdw0s3jn54kh";
+  const repResult = runEntropyScanner(repetitive, 16);
+  const randResult = runEntropyScanner(randomish, 16);
+  assert(
+    repResult.best.bestUnique < randResult.best.bestUnique,
+    `Repetitive string should have fewer unique chars: ${repResult.best.bestUnique} vs ${randResult.best.bestUnique}`,
+  );
 });
 
 // ─── Summary ──────────────────────────────────────────────────────────────

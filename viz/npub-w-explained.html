@@ -89,15 +89,15 @@ A pattern like "qpqpqpqpqpqpqpqp" is EXTREMELY surprising at W=16 but normal at 
 </div>
 
 <h2>Visualizing W — Option 1: The 2D Heatmap (your idea!)</h2>
-<div class="sub">X-axis = position in NPUB (0-57). Y-axis = window size (W=3 to W=20). Color = z-score (green=normal, red=extreme).</div>
+<div class="sub">X-axis = position in NPUB (0-57). Y-axis = window size (W=3 to W=20). Color = unique char count (green=many/normal, red=few/rare).</div>
 
 <div class="card">
 <div class="legend">
-<div class="legend-item"><div class="legend-swatch" style="background:#2d3436"></div> z<1 (normal)</div>
-<div class="legend-item"><div class="legend-swatch" style="background:#1a5276"></div> z≈2 (mild)</div>
-<div class="legend-item"><div class="legend-swatch" style="background:#2e86c1"></div> z≈3 (notable)</div>
-<div class="legend-item"><div class="legend-swatch" style="background:#f39c12"></div> z≈5 (strong)</div>
-<div class="legend-item"><div class="legend-swatch" style="background:#c0392b"></div> z>6 (extreme)</div>
+<div class="legend-item"><div class="legend-swatch" style="background:#2d3436"></div> 13+ unique (normal)</div>
+<div class="legend-item"><div class="legend-swatch" style="background:#1a5276"></div> ~11 unique (mild)</div>
+<div class="legend-item"><div class="legend-swatch" style="background:#2e86c1"></div> ~9 unique (notable)</div>
+<div class="legend-item"><div class="legend-swatch" style="background:#f39c12"></div> ~7 unique (strong)</div>
+<div class="legend-item"><div class="legend-swatch" style="background:#c0392b"></div> ≤5 unique (extreme)</div>
 </div>
 
 <div style="font-size:12px;color:#8b949e;margin:5px 0">NPUB with a 16-char low-entropy section in the middle (positions 20-35):</div>
@@ -121,7 +121,7 @@ A pattern like "qpqpqpqpqpqpqpqp" is EXTREMELY surprising at W=16 but normal at 
 <div style="font-size:12px;color:#8b949e;margin:15px 0">Compare: a RANDOM NPUB (no grinding):</div>
 <div id="heatmap-random" style="margin:10px 0"></div>
 
-<div style="font-size:12px;color:#8b949e;margin:5px 0">Read it like a weather radar: the red blob in the ground NPUB IS the fingerprint. Random NPUB has no hot zone.</div>
+<div style="font-size:12px;color:#8b949e;margin:5px 0">Read it like a weather radar: the red blob in the ground NPUB IS the fingerprint (very few unique chars). Random NPUB has no hot zone.</div>
 </div>
 
 <h2>Visualizing W — Option 2: Simpler — Just Show the Winner</h2>
@@ -132,13 +132,13 @@ A pattern like "qpqpqpqpqpqpqpqp" is EXTREMELY surprising at W=16 but normal at 
 <div style="flex:1;min-width:250px">
 <div style="font-size:13px;font-weight:bold;color:#3fb950;margin-bottom:8px">Ground NPUB</div>
 <div style="font-size:11px;color:#8b949e;margin-bottom:4px">Scanner found: W=16 at position 20</div>
-<div style="font-size:11px;color:#d2a8ff;margin-bottom:8px">Z-score: 6.31 (EXTREME)</div>
+<div style="font-size:11px;color:#d2a8ff;margin-bottom:8px">Unique chars: 2 (EXTREME)</div>
 <div id="winner-ground" style="margin:8px 0"></div>
 </div>
 <div style="flex:1;min-width:250px">
 <div style="font-size:13px;font-weight:bold;color:#f85149;margin-bottom:8px">Attacker NPUB</div>
 <div style="font-size:11px;color:#8b949e;margin-bottom:4px">Scanner found: W=10 at position 35</div>
-<div style="font-size:11px;color:#d2a8ff;margin-bottom:8px">Z-score: 5.84 (STRONG but different)</div>
+<div style="font-size:11px;color:#d2a8ff;margin-bottom:8px">Unique chars: 3 (STRONG but different)</div>
 <div id="winner-attacker" style="margin:8px 0"></div>
 </div>
 </div>
@@ -171,7 +171,7 @@ Different W = different pattern shape = instantly distinguishable.
 <div style="font-size:10px;color:#8b949e;margin-top:5px">Position in NPUB →</div>
 
 <div style="font-size:12px;color:#8b949e;margin-top:10px">
-The spike IS the fingerprint. Bar height = how surprising the pattern is at that position. Color = which W value found it.
+The spike IS the fingerprint. Bar height = how few unique chars the pattern has at that position. Color = which W value found it.
 <div class="legend" style="margin-top:8px">
 <div class="legend-item"><div class="legend-swatch" style="background:#3fb950"></div> W=3-6 (short patterns)</div>
 <div class="legend-item"><div class="legend-swatch" style="background:#f39c12"></div> W=7-12 (medium)</div>
@@ -221,6 +221,29 @@ const BASELINE = {
 };
 const WSIZES = [3,4,5,6,7,8,9,10,12,14,16,18,20];
 
+function uniqueCount(window) {
+  return new Set(window).size;
+}
+
+function uniqueColor(uc, w) {
+  // Expected unique chars for window size w (approximate from baseline data)
+  const expected = {
+    3: 2.7, 4: 3.5, 5: 4.1, 6: 4.6, 7: 5.1, 8: 5.5, 9: 5.9, 10: 6.2,
+    12: 6.8, 14: 7.3, 16: 7.7, 18: 8.1, 20: 8.4
+  };
+  const exp = expected[w] || w * 0.5;
+  // Fewer unique than expected = more intense color
+  const deficit = exp - uc;
+  if (deficit < 1) return '#2d3436';   // normal
+  if (deficit < 2) return '#1a5276';   // mild
+  if (deficit < 3) return '#2e86c1';   // notable
+  if (deficit < 4) return '#5dade2';   // moderate
+  if (deficit < 5) return '#f39c12';   // strong
+  if (deficit < 6) return '#e67e22';   // very strong
+  return '#c0392b';                     // extreme
+}
+
+// Z-score retained as secondary metric
 function zScore(h, w) {
   const b = BASELINE[w]; if(!b) return 0;
   return Math.max(0,(b.m - h) / b.s);
@@ -249,9 +272,10 @@ function drawHeatmap(id, data) {
       if(pos + w > data.length) {
         html += `<div class="hm-cell" style="background:transparent"></div>`;
       } else {
-        const h = ent(data.slice(pos, pos+w));
-        const z = zScore(h, w);
-        html += `<div class="hm-cell" style="background:${zColor(z)}" title="W${w} pos${pos}: z=${z.toFixed(1)}"></div>`;
+        const win = data.slice(pos, pos+w);
+        const uc = uniqueCount(win);
+        const z = zScore(ent(win), w);
+        html += `<div class="hm-cell" style="background:${uniqueColor(uc, w)}" title="W${w} pos${pos}: ${uc} unique chars (z=${z.toFixed(1)})"></div>`;
       }
     }
   }
@@ -291,7 +315,8 @@ function drawWinner(id, data, wVal, pos, label) {
   
   const h = ent(win);
   const z = zScore(h, wVal);
-  html += `<div style="font-size:11px;color:#d2a8ff;margin-top:4px">Entropy: ${h.toFixed(2)} bits/char → Z-score: ${z.toFixed(2)}</div>`;
+  const uc = uniqueCount(win);
+  html += `<div style="font-size:11px;color:#d2a8ff;margin-top:4px">Unique chars: ${uc} <span style="font-size:10px;color:#8b949e;margin-left:6px">entropy: ${h.toFixed(2)}, z=${z.toFixed(2)}</span></div>`;
   
   el.innerHTML = html;
 }
@@ -307,29 +332,32 @@ drawWinner('winner-attacker', attackerData, 10, 35, 'Low-entropy section');
 function drawSeismo(id, data) {
   const el = document.getElementById(id);
   
-  // For each position, find max z-score across all W
+  // For each position, find min unique char count across all W
   const posData = [];
   for(let pos=0; pos<data.length; pos++) {
-    let maxZ = 0;
+    let minUC = 99;
     let bestW = 0;
+    let bestZ = 0;
     for(const w of WSIZES) {
       if(pos + w > data.length) continue;
-      const h = ent(data.slice(pos, pos+w));
-      const z = zScore(h, w);
-      if(z > maxZ) { maxZ = z; bestW = w; }
+      const win = data.slice(pos, pos+w);
+      const uc = uniqueCount(win);
+      const z = zScore(ent(win), w);
+      if(uc < minUC) { minUC = uc; bestW = w; bestZ = z; }
     }
-    posData.push({pos, z: maxZ, w: bestW});
+    posData.push({pos, uc: minUC, w: bestW, z: bestZ});
   }
   
   let html = '<div style="display:flex;align-items:flex-end;gap:1px;height:80px;">';
   for(const pd of posData) {
-    const heightPct = Math.min(100, (pd.z / 7) * 100);
+    // Height based on unique char rarity (fewer = taller bar)
+    const heightPct = Math.min(100, Math.max(0, (15 - pd.uc) / 15 * 100));
     let color;
     if(pd.w <= 6) color = '#3fb950';
     else if(pd.w <= 12) color = '#f39c12';
     else color = '#c0392b';
     
-    html += `<div style="width:12px;height:${heightPct}%;background:${color};border-radius:2px 2px 0 0;min-height:2px;" title="pos ${pd.pos}: z=${pd.z.toFixed(1)} (W=${pd.w})"></div>`;
+    html += `<div style="width:12px;height:${heightPct}%;background:${color};border-radius:2px 2px 0 0;min-height:2px;" title="pos ${pd.pos}: ${pd.uc} unique chars (W=${pd.w}, z=${pd.z.toFixed(1)})"></div>`;
   }
   html += '</div>';
   el.innerHTML = html;

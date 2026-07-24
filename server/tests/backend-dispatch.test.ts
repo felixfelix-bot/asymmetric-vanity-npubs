@@ -95,7 +95,7 @@ function makeGrindParams(): GrindParams {
     maxOffset: 1000000n,
     timeoutMs: 5000,
     scanEntropy: false,
-    minZScore: 0,
+    minRarity: 0,
     minWindowSize: 16,
   };
 }

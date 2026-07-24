@@ -58,14 +58,14 @@ h2{color:#f0883e;font-size:14px;margin-top:20px;margin-bottom:8px;padding-bottom
 <body>
 
 <h1>NPUB Outlier Discovery — Anti-Phishing Fingerprint Scanner</h1>
-<div class="sub">No predefined pattern. Scanner finds the most anomalous section automatically. Z-score = statistical surprise.</div>
+<div class="sub">No predefined pattern. Scanner finds the most anomalous section automatically. Unique char count = how few distinct characters in the window (fewer = rarer = more recognizable).</div>
 
 <!-- CONCEPT -->
 <h2>How It Works</h2>
 <div class="sub" style="max-width:600px">
 1. Scan NPUB at 13 window sizes (3..20 chars) × all positions<br>
 2. For each window, compute Shannon entropy, compare to baseline distribution (20k random NPUBs)<br>
-3. Z-score = how many std-devs below expected entropy. Max z-score = the NPUB's "fingerprint anchor"<br>
+3. Unique char count = how many distinct bech32 characters appear in the window. Fewer = rarer = the NPUB's "fingerprint anchor"
 4. Browser highlights the anchor section. User learns to recognize it.
 </div>
 
@@ -73,7 +73,7 @@ h2{color:#f0883e;font-size:14px;margin-top:20px;margin-bottom:8px;padding-bottom
 <h2>Random NPUB — What scanner finds</h2>
 <div class="npub-card">
   <div class="card-title">RANDOM NPUB</div>
-  <div class="card-desc">No grinding. Scanner finds a weak outlier (z≈1). Not distinctive enough for anti-phishing.</div>
+  <div class="card-desc">No grinding. Scanner finds a window with ~12 unique chars. Not distinctive enough for anti-phishing.</div>
   
   <div class="scan-output">
     <div>
@@ -81,8 +81,8 @@ h2{color:#f0883e;font-size:14px;margin-top:20px;margin-bottom:8px;padding-bottom
       <div class="npub-line" id="npub-random"></div>
     </div>
     <div>
-      <div class="scan-label">Outlier z-score:</div>
-      <div class="z-badge z-low">z = 1.09 (WEAK)</div>
+      <div class="scan-label">Unique chars in window:</div>
+      <div class="z-badge z-low">5 unique chars (WEAK) <span style="font-size:10px;color:#8b949e;margin-left:6px">z=1.09</span></div>
     </div>
   </div>
   
@@ -92,7 +92,7 @@ h2{color:#f0883e;font-size:14px;margin-top:20px;margin-bottom:8px;padding-bottom
 <!-- GROUND NPUB -->
 <h2>Ground NPUB — After grinding 10,000 keys</h2>
 <div class="npub-card ground">
-  <div class="card-title ground">GROUND NPUB (z = 6.31)</div>
+  <div class="card-title ground">GROUND NPUB (7 unique chars)</div>
   <div class="card-desc">Grinding 10k keys finds extreme outlier. 18-char section with only 7 distinct chars. Highly recognizable.</div>
   
   <div class="scan-output">
@@ -101,8 +101,8 @@ h2{color:#f0883e;font-size:14px;margin-top:20px;margin-bottom:8px;padding-bottom
       <div class="npub-line" id="npub-ground"></div>
     </div>
     <div>
-      <div class="scan-label">Outlier z-score:</div>
-      <div class="z-badge z-extreme">z = 6.31 (EXTREME)</div>
+      <div class="scan-label">Unique chars in window:</div>
+      <div class="z-badge z-extreme">7 unique chars (EXTREME) <span style="font-size:10px;color:#8b949e;margin-left:6px">z=6.31</span></div>
     </div>
   </div>
   
@@ -112,8 +112,8 @@ h2{color:#f0883e;font-size:14px;margin-top:20px;margin-bottom:8px;padding-bottom
 <!-- ATTACKER -->
 <h2>Attacker — Same name, different fingerprint</h2>
 <div class="npub-card attack">
-  <div class="card-title attack">ATTACKER NPUB (z = 5.84)</div>
-  <div class="card-desc">Attacker grinds their own outlier. Similar z-score, but DIFFERENT section, DIFFERENT characters, DIFFERENT visual.</div>
+  <div class="card-title attack">ATTACKER NPUB (8 unique chars)</div>
+  <div class="card-desc">Attacker grinds their own outlier. Similar unique char count, but DIFFERENT section, DIFFERENT characters, DIFFERENT visual.</div>
   
   <div class="scan-output">
     <div>
@@ -121,8 +121,8 @@ h2{color:#f0883e;font-size:14px;margin-top:20px;margin-bottom:8px;padding-bottom
       <div class="npub-line" id="npub-attacker"></div>
     </div>
     <div>
-      <div class="scan-label">Outlier z-score:</div>
-      <div class="z-badge z-high">z = 5.84 (STRONG but DIFFERENT)</div>
+      <div class="scan-label">Unique chars in window:</div>
+      <div class="z-badge z-high">8 unique chars (STRONG but DIFFERENT) <span style="font-size:10px;color:#8b949e;margin-left:6px">z=5.84</span></div>
     </div>
   </div>
   
@@ -130,37 +130,37 @@ h2{color:#f0883e;font-size:14px;margin-top:20px;margin-bottom:8px;padding-bottom
 </div>
 
 <!-- COMPOSITE FINGERPRINT RADAR -->
-<h2>Composite Fingerprint — Z-scores at all 13 scales</h2>
+<h2>Composite Fingerprint — Unique char count at all 13 scales</h2>
 <div class="sub">Each NPUB produces a 13-dimensional profile. Same scale = different anomaly = different shape.</div>
 
 <div class="radar-wrap">
   <div style="text-align:center">
-    <div style="font-size:11px;color:#8b949e;margin-bottom:4px">Random (z≈1)</div>
+    <div style="font-size:11px;color:#8b949e;margin-bottom:4px">Random (~12 unique)</div>
     <svg width="200" height="200" id="radar-r"></svg>
   </div>
   <div style="text-align:center">
-    <div style="font-size:11px;color:#3fb950;margin-bottom:4px">Ground (z≈6)</div>
+    <div style="font-size:11px;color:#3fb950;margin-bottom:4px">Ground (7 unique)</div>
     <svg width="200" height="200" id="radar-g"></svg>
   </div>
   <div style="text-align:center">
-    <div style="font-size:11px;color:#f85149;margin-bottom:4px">Attacker (z≈5.8)</div>
+    <div style="font-size:11px;color:#f85149;margin-bottom:4px">Attacker (8 unique)</div>
     <svg width="200" height="200" id="radar-a"></svg>
   </div>
 </div>
 
 <!-- GRINDING COST TABLE -->
 <h2>Grinding Cost vs Outlier Strength</h2>
-<div class="sub">More grinding = stronger fingerprint anchor.</div>
+<div class="sub">More grinding = fewer unique chars = stronger fingerprint anchor.</div>
 
 <div style="display:flex;gap:20px;flex-wrap:wrap">
   <div style="background:#161b22;padding:15px;border-radius:8px;border:1px solid #30363d">
     <table style="font-size:12px;border-collapse:collapse">
-      <tr style="color:#8b949e"><th style="text-align:left;padding:4px 12px">Keys tried</th><th style="text-align:right;padding:4px 12px">Best z-score</th><th style="text-align:left;padding:4px 12px">Strength</th></tr>
-      <tr><td style="padding:3px 12px;color:#8b949e">10</td><td style="text-align:right;padding:3px 12px">~2.0</td><td style="padding:3px 12px"><span class="z-badge z-mid" style="padding:1px 6px;font-size:10px">weak</span></td></tr>
-      <tr><td style="padding:3px 12px;color:#8b949e">100</td><td style="text-align:right;padding:3px 12px">~3.9</td><td style="padding:3px 12px"><span class="z-badge z-mid" style="padding:1px 6px;font-size:10px">moderate</span></td></tr>
-      <tr><td style="padding:3px 12px;color:#8b949e">1,000</td><td style="text-align:right;padding:3px 12px">~5.0</td><td style="padding:3px 12px"><span class="z-badge z-high" style="padding:1px 6px;font-size:10px">strong</span></td></tr>
-      <tr><td style="padding:3px 12px;color:#8b949e">10,000</td><td style="text-align:right;padding:3px 12px">~6.3</td><td style="padding:3px 12px"><span class="z-badge z-extreme" style="padding:1px 6px;font-size:10px">extreme</span></td></tr>
-      <tr><td style="padding:3px 12px;color:#8b949e">100,000</td><td style="text-align:right;padding:3px 12px">~7.5</td><td style="padding:3px 12px"><span class="z-badge z-extreme" style="padding:1px 6px;font-size:10px">forgery-resistant</span></td></tr>
+      <tr style="color:#8b949e"><th style="text-align:left;padding:4px 12px">Keys tried</th><th style="text-align:right;padding:4px 12px">Unique chars</th><th style="text-align:left;padding:4px 12px">Strength</th></tr>
+      <tr><td style="padding:3px 12px;color:#8b949e">10</td><td style="text-align:right;padding:3px 12px">~14</td><td style="padding:3px 12px"><span class="z-badge z-mid" style="padding:1px 6px;font-size:10px">weak</span></td></tr>
+      <tr><td style="padding:3px 12px;color:#8b949e">100</td><td style="text-align:right;padding:3px 12px">~12</td><td style="padding:3px 12px"><span class="z-badge z-mid" style="padding:1px 6px;font-size:10px">moderate</span></td></tr>
+      <tr><td style="padding:3px 12px;color:#8b949e">1,000</td><td style="text-align:right;padding:3px 12px">~10</td><td style="padding:3px 12px"><span class="z-badge z-high" style="padding:1px 6px;font-size:10px">strong</span></td></tr>
+      <tr><td style="padding:3px 12px;color:#8b949e">10,000</td><td style="text-align:right;padding:3px 12px">~7</td><td style="padding:3px 12px"><span class="z-badge z-extreme" style="padding:1px 6px;font-size:10px">extreme</span></td></tr>
+      <tr><td style="padding:3px 12px;color:#8b949e">100,000</td><td style="text-align:right;padding:3px 12px">~5</td><td style="padding:3px 12px"><span class="z-badge z-extreme" style="padding:1px 6px;font-size:10px">forgery-resistant</span></td></tr>
     </table>
   </div>
   
@@ -169,7 +169,7 @@ h2{color:#f0883e;font-size:14px;margin-top:20px;margin-bottom:8px;padding-bottom
     <div style="font-size:11px;color:#c9d1d9;line-height:1.6">
       Finding ANY extreme outlier: ~10k tries (seconds on laptop)<br><br>
       Matching a SPECIFIC outlier pattern: millions of times harder<br><br>
-      The z-score IS the proof-of-work. Higher z = more work = stronger visual fingerprint = harder to forge.
+      The unique char count IS the proof-of-work. Fewer unique chars = more work = stronger visual fingerprint = harder to forge.
     </div>
   </div>
 </div>
@@ -239,7 +239,7 @@ function renderDetail(id, data) {
   html += `<div class="od-row"><span class="od-label">Position</span><span class="od-val">char ${o.pos}-${o.pos+o.w-1}</span></div>`;
   html += `<div class="od-row"><span class="od-label">Entropy</span><span class="od-val">${o.entropy.toFixed(2)} bits/char</span></div>`;
   html += `<div class="od-row"><span class="od-label">Distinct chars</span><span class="od-val">${new Set(o.pattern).size} of 32</span></div>`;
-  html += `<div class="od-row"><span class="od-label">Z-score</span><span class="od-val">${o.z.toFixed(2)}σ below expected</span></div>`;
+  html += `<div class="od-row"><span class="od-label">Z-score</span><span class="od-val">${o.z.toFixed(2)}σ <span style="font-size:10px;color:#8b949e">(secondary)</span></span></div>`;
   html += '</div>';
   html += `<div style="margin-top:8px"><span class="od-label">Pattern: </span><span class="pattern">${o.pattern}</span></div>`;
   

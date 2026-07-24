@@ -34,7 +34,7 @@ export const grindNpubSchema = {
   options: z
     .object({
       suffix: z.string().optional().describe("Also match a suffix pattern"),
-      min_z_score: z.number().optional().describe("Minimum entropy outlier z-score (ADR-003)"),
+      min_rarity: z.number().optional().describe("Minimum rarity score (expected_unique − actual_unique, ADR-003)"),
       min_window_size: z.number().optional().describe("Minimum fingerprint window size (16|25|36|49)"),
       timeout_secs: z.number().optional().describe("Max grind time in seconds (default: 300)"),
       max_cost_sats: z.number().optional().describe("Max willing to pay in sats"),
@@ -97,7 +97,7 @@ export async function handleGrindNpub(
   //
   // Calculate the cost of grinding this pattern. If it exceeds the client's
   // max_cost_sats budget, return `payment_required` with payment instructions.
-  const scanEntropy = params.options?.min_z_score !== undefined && params.options.min_z_score > 0;
+  const scanEntropy = params.options?.min_rarity !== undefined && params.options.min_rarity > 0;
   const pricingConfig = pricingConfigFromServer({
     freeThreshold: parseInt(process.env.VNAAS_FREE_THRESHOLD ?? "8", 10),
     satsPerBit: parseInt(process.env.VNAAS_SATS_PER_BIT ?? "10", 10),

@@ -35,7 +35,7 @@ import { nip19 } from "nostr-tools";
  *   --cores <N>               Number of CPU cores to use
  *   --timeout <secs>          Timeout in seconds
  *   --scan-entropy             Enable entropy scanning on matches
- *   --min-z-score <float>     Minimum z-score for entropy acceptance
+ *   --min-rarity <float>      Minimum rarity score for entropy acceptance
  */
 export class RanaBackend implements GrindBackend {
   name = "rana" as const;
@@ -102,7 +102,7 @@ export class RanaBackend implements GrindBackend {
     }
 
     if (params.scanEntropy) {
-      args.push("--scan-entropy", "--min-z-score", String(params.minZScore));
+      args.push("--scan-entropy", "--min-rarity", String(params.minRarity));
     }
 
     this.logger.info(`Spawning rana: ${this.binaryPath} ${args.join(" ")}`);
@@ -134,12 +134,13 @@ export class RanaBackend implements GrindBackend {
               offset?: string;
               npub?: string;
               pattern?: string;
-              z_score?: number;
+              unique_chars?: number;
               fingerprint?: {
                 size: number;
                 position: number;
                 unique_chars: number;
-                quality_db: number;
+                expected_unique: number;
+                rarity: number;
               };
               keys_tried?: number;
               duration_ms?: number;
@@ -153,13 +154,15 @@ export class RanaBackend implements GrindBackend {
                 found: true,
                 offset: BigInt(result.offset),
                 vanityNpub: result.npub,
-                zScore: result.z_score,
+                uniqueChars: result.unique_chars,
+                rarity: result.fingerprint?.rarity,
                 fingerprint: result.fingerprint
                   ? {
                       size: result.fingerprint.size,
                       position: result.fingerprint.position,
                       uniqueChars: result.fingerprint.unique_chars,
-                      qualityDb: result.fingerprint.quality_db,
+                      expectedUnique: result.fingerprint.expected_unique,
+                      rarity: result.fingerprint.rarity,
                     }
                   : undefined,
                 keysTried: result.keys_tried ?? 0,

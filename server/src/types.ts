@@ -21,8 +21,8 @@ export interface GrindNpubParams {
   options?: {
     /** Also match a suffix pattern in the NPUB */
     suffix?: string;
-    /** Minimum entropy outlier z-score (ADR-003) */
-    min_z_score?: number;
+    /** Minimum rarity score (expected_unique − actual_unique, ADR-003) */
+    min_rarity?: number;
     /** Minimum fingerprint window size: 16, 25, 36, or 49 */
     min_window_size?: number;
     /** Maximum grind time in seconds (default: 300) */
@@ -44,14 +44,17 @@ export interface GrindNpubResult {
   offset?: string;
   /** The resulting vanity NPUB (npub1...) */
   vanity_npub?: string;
-  /** Entropy outlier z-score if scanned */
-  z_score?: number;
+  /** Unique character count if scanned (distinct hex chars in window) */
+  unique_chars?: number;
+  /** Rarity score (expected_unique − actual_unique) */
+  rarity?: number;
   /** Fingerprint window analysis */
   fingerprint_window?: {
     size: number;
     position: number;
     unique_chars: number;
-    quality_db: number;
+    expected_unique: number;
+    rarity: number;
   };
   /** Grinding statistics */
   grind_stats?: {
@@ -99,7 +102,7 @@ export interface GrindParams {
   maxOffset: bigint;
   timeoutMs: number;
   scanEntropy: boolean;
-  minZScore: number;
+  minRarity: number;
   minWindowSize: number;
 }
 
@@ -110,7 +113,8 @@ export interface GrindResult {
   found: boolean;
   offset?: bigint;
   vanityNpub?: string;
-  zScore?: number;
+  rarity?: number;
+  uniqueChars?: number;
   fingerprint?: FingerprintInfo;
   keysTried: number;
   durationMs: number;
@@ -120,13 +124,14 @@ export interface GrindResult {
 }
 
 /**
- * Fingerprint analysis info (ADR-003/004).
+ * Fingerprint analysis info (ADR-003).
  */
 export interface FingerprintInfo {
   size: number;
   position: number;
   uniqueChars: number;
-  qualityDb: number;
+  expectedUnique: number;
+  rarity: number;
 }
 
 // ---------------------------------------------------------------------------
