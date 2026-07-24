@@ -488,33 +488,33 @@
     color: var(--orange);
   }
 
-  /* ── Entropy gradient bar ── */
-  .entropy-gradient {
+  /* ── Character gradient bar ── */
+  .char-gradient {
     background: var(--bg);
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 12px;
     margin: 12px 0;
   }
-  .entropy-gradient .gradient-row {
+  .char-gradient .gradient-row {
     display: flex;
     gap: 1px;
     height: 28px;
     align-items: stretch;
   }
-  .entropy-gradient .gradient-cell {
+  .char-gradient .gradient-cell {
     flex: 1;
     min-width: 3px;
     border-radius: 2px;
     position: relative;
     animation: cellAppear 0.3s ease-out both;
   }
-  .entropy-gradient .gradient-cell.outlier {
+  .char-gradient .gradient-cell.outlier {
     box-shadow: 0 0 8px var(--orange), 0 0 3px var(--orange) inset;
     border: 1px solid var(--orange);
     z-index: 2;
   }
-  .entropy-gradient .gradient-cell.outlier::after {
+  .char-gradient .gradient-cell.outlier::after {
     content: '▼';
     position: absolute;
     top: -16px;
@@ -523,7 +523,7 @@
     font-size: 11px;
     color: var(--orange);
   }
-  .entropy-gradient .gradient-scale {
+  .char-gradient .gradient-scale {
     display: flex;
     justify-content: space-between;
     font-size: 10px;
@@ -821,14 +821,14 @@
     <div class="insight">
       <strong>Key insight:</strong> Both have 'sat' in their NPUB. Both cost the same. Which is Alice's? You cannot tell. This is why vanity alone doesn't prevent phishing.
     </div>
-    <button class="next-btn" onclick="revealSection(3)">Next: Low-Entropy Discovery →</button>
+    <button class="next-btn" onclick="revealSection(3)">Next: Raindrop Discovery →</button>
   </div>
 
   <!-- SECTION 3 -->
   <div class="section hidden" id="sec3">
     <span class="section-number">4 / 7</span>
-    <h2>Low-Entropy Discovery</h2>
-    <p>Now we scan the first NPUB from Section 2 with a multi-scale entropy scanner. We look for naturally-occurring high-dominance low-diversity windows — outliers ranked by combined score (max_freq × avg_freq). These were never designed, just discovered.</p>
+    <h2>Raindrop Discovery</h2>
+    <p>Now we scan the first NPUB from Section 2 with a multi-scale pattern scanner. We look for naturally-occurring high-dominance low-diversity windows — outliers ranked by combined score (max_freq × avg_freq). These were never designed, just discovered.</p>
     <div id="s3-result"></div>
     <div class="insight">
       <strong>Key insight:</strong> This outlier was DISCOVERED, not constructed. It exists naturally. Finding it costs nothing beyond the initial key generation.
@@ -1006,7 +1006,7 @@ function highlightNpub(npub, word, className) {
     + dataPart.substring(idx + word.length);
 }
 
-// ─── Entropy Scanner ──────────────────────────────────────────────────────
+// ─── Pattern Scanner ──────────────────────────────────────────────────────
 // Expected unique chars for window of size W from 32-char alphabet (occupancy problem)
 // E[unique] = 32 × (1 - (31/32)^W)
 const EXPECTED_UNIQUE = {};
@@ -1017,7 +1017,7 @@ for (let W of WINDOW_SIZES) {
 }
 // W=16 → ~10.34, W=25 → ~16.61, W=36 → ~20.65, W=49 → ~24.20
 
-function shannonEntropy(str) {
+function computeEvenness(str) {
   let freq = {};
   for (let c of str) freq[c] = (freq[c] || 0) + 1;
   let h = 0;
@@ -1056,7 +1056,7 @@ function maxFrequency(str) {
 // E[max_freq] from Monte Carlo simulation (5M samples, 32-char alphabet)
 const EXPECTED_MAX_FREQ = {16: 3.08, 25: 4.0, 36: 5.0, 49: 6.0};
 
-function runEntropyScanner(dataStr, minW) {
+function runPatternScanner(dataStr, minW) {
   minW = minW || 16;
   // Dual metric: rarity_unique (diversity) + rarity_max (raindrop)
   // Combined quality = max(rarity_unique, rarity_max) — "best of either metric"
@@ -1065,7 +1065,7 @@ function runEntropyScanner(dataStr, minW) {
   let bestRarityMax = -Infinity;
   let bestW = 0;
   let bestPos = 0;
-  let bestEntropy = 0;
+  let bestEvenness = 0;
   let bestUnique = 0;
   let bestExpected = 0;
   let bestMaxFreq = 0;
@@ -1078,20 +1078,20 @@ function runEntropyScanner(dataStr, minW) {
     let expectedMaxFreq = EXPECTED_MAX_FREQ[W];
     for (let pos = 0; pos <= dataStr.length - W; pos++) {
       let window = dataStr.substring(pos, pos + W);
-      let ent = shannonEntropy(window);
+      let even = computeEvenness(window);
       let uniq = uniqueCharCount(window);
       let rarity = expected - uniq;              // rarity_unique: fewer chars than expected
       let maxFreq = maxFrequency(window);
       let rarityMax = maxFreq - expectedMaxFreq;  // rarity_max: bigger raindrop than expected
       let quality = Math.max(rarity, rarityMax);  // combined: best of either metric
-      allResults.push({W, pos, ent, uniq, expectedUnique: expected, rarity, maxFreq, expectedMaxFreq, rarityMax, quality});
+      allResults.push({W, pos, even, uniq, expectedUnique: expected, rarity, maxFreq, expectedMaxFreq, rarityMax, quality});
       if (quality > bestQuality) {
         bestQuality = quality;
         bestRarity = rarity;
         bestRarityMax = rarityMax;
         bestW = W;
         bestPos = pos;
-        bestEntropy = ent;
+        bestEvenness = even;
         bestUnique = uniq;
         bestExpected = expected;
         bestMaxFreq = maxFreq;
@@ -1099,7 +1099,7 @@ function runEntropyScanner(dataStr, minW) {
       }
     }
   }
-  return {bestRarity, bestRarityMax, bestW, bestPos, bestEntropy, bestUnique, bestExpected, bestMaxFreq, bestExpectedMaxFreq, bestQuality, allResults};
+  return {bestRarity, bestRarityMax, bestW, bestPos, bestEvenness, bestUnique, bestExpected, bestMaxFreq, bestExpectedMaxFreq, bestQuality, allResults};
 }
 
 // ─── Color Map ─────────────────────────────────────────────────────────────
@@ -1186,13 +1186,13 @@ function renderFingerprintRadial(chars, W, uniqueChars, maxFreq) {
   return html;
 }
 
-// ─── Entropy Gradient Bar ────────────────────────────────────────────────────
+// ─── Character Gradient Bar ────────────────────────────────────────────────────
 // Draws a horizontal bar of the full NPUB data part, each cell colored by its
 // character.  The outlier window [bestPos, bestPos+bestW) is highlighted with
 // an orange glow + downward arrow.
-function renderEntropyGradient(dataPart, bestPos, bestW) {
-  let html = '<div class="entropy-gradient">';
-  html += '<div class="card-label" style="margin-bottom:8px;">Entropy gradient across full NPUB (outlier highlighted):</div>';
+function renderCharGradient(dataPart, bestPos, bestW) {
+  let html = '<div class="char-gradient">';
+  html += '<div class="card-label" style="margin-bottom:8px;">Character gradient across full NPUB (outlier highlighted):</div>';
   html += '<div class="gradient-row">';
   for (let i = 0; i < dataPart.length; i++) {
     let c = dataPart[i];
@@ -1259,7 +1259,7 @@ function highlightTwoZones(npub, vanityStart, vanityLen, antiStart, antiLen) {
 // ─── Shared State ──────────────────────────────────────────────────────────
 let state = {
   sec2keys: null,      // {npub1, npub2, word}
-  aliceScan: null,     // entropy scan result for section 3
+  aliceScan: null,     // pattern scan result for section 3
   aliceNpub: null,     // first NPUB from section 2
   aliceWord: null,     // vanity word from section 2
   attackerScan: null,
@@ -1380,7 +1380,7 @@ window.generateSection2 = function() {
 
   let count = 0;
   let satCount = 0;
-  let best = null;   // best entropy outlier NPUB
+  let best = null;   // best raindrop outlier NPUB
   let second = null;  // second best for comparison
   let secondNpub = null; // any other sat NPUB for Key B
   let bestRarity = -1;
@@ -1398,7 +1398,7 @@ window.generateSection2 = function() {
         satCount++;
         // Immediately scan this candidate for unique-char outlier
         let dp = npub.substring(5);
-        let scan = runEntropyScanner(dp, minW);
+        let scan = runPatternScanner(dp, minW);
         if (!best || scan.bestQuality > best.scan.bestQuality) {
           // Old best becomes second
           if (best) second = best;
@@ -1445,7 +1445,7 @@ window.generateSection2 = function() {
     if (best && best.scan.bestQuality > 0) {
       html += '<div class="grind-explain">Best so far: unique=' + best.scan.bestUnique + '/' + best.scan.bestW + ', max_freq=' + best.scan.bestMaxFreq + ', combined rarity=' + best.scan.bestQuality.toFixed(2) + ' in W=' + best.scan.bestW + '. Higher combined rarity = more recognizable. Still grinding…</div>';
     } else {
-      html += '<div class="grind-explain">Grinding keys looking for "sat" matches. Each match is scanned for low-entropy patterns (combined rarity = max(rarity_unique, rarity_max), W≥' + minW + '). The longer we grind, the better the outlier.</div>';
+      html += '<div class="grind-explain">Grinding keys looking for "sat" matches. Each match is scanned for low-diversity patterns (combined rarity = max(rarity_unique, rarity_max), W≥' + minW + '). The longer we grind, the better the outlier.</div>';
     }
     html += '</div>';
     document.getElementById('s2-result').innerHTML = html;
@@ -1492,7 +1492,7 @@ window.generateSection2 = function() {
   setTimeout(grindLoop, 50);
 };
 
-// ─── SECTION 3: Low-Entropy Discovery ───────────────────────────────────────
+// ─── SECTION 3: Raindrop Discovery ───────────────────────────────────────
 function runSection3() {
   let npub = state.aliceNpub;
   if (!npub) {
@@ -1501,7 +1501,7 @@ function runSection3() {
   }
   let dataPart = npub.substring(5); // after npub1
   let minW = parseInt(document.getElementById('minW-slider').value) || 16;
-  let result = runEntropyScanner(dataPart, minW);
+  let result = runPatternScanner(dataPart, minW);
   state.aliceScan = result;
 
   let winnerChars = dataPart.substring(result.bestPos, result.bestPos + result.bestW);
@@ -1515,14 +1515,13 @@ function runSection3() {
   html += '<div><span class="label">Unique characters:</span> <span class="value">' + result.bestUnique + '</span> out of ' + result.bestW + ' (expected ~' + result.bestExpected.toFixed(1) + ' for random → rarity_unique = ' + result.bestRarity.toFixed(2) + ')</div>';
   html += '<div><span class="label">Max frequency:</span> <span class="value">' + result.bestMaxFreq + '</span> (most common char appears ' + result.bestMaxFreq + ' times out of ' + result.bestW + ' — expected ~' + result.bestExpectedMaxFreq.toFixed(2) + ' → rarity_max = ' + result.bestRarityMax.toFixed(2) + ')</div>';
   html += '<div><span class="label">Combined rarity:</span> <span class="value">' + result.bestQuality.toFixed(2) + '</span> = max(rarity_unique=' + result.bestRarity.toFixed(2) + ', rarity_max=' + result.bestRarityMax.toFixed(2) + ') — PRIMARY metric (higher = more recognizable)</div>';
-  html += '<div><span class="label">Entropy:</span> <span class="value">' + result.bestEntropy.toFixed(3) + '</span> bits (informational)</div>';
   html += '<div><span class="label">Winning chars:</span> <span class="value">' + winnerChars + '</span></div>';
   html += '</div>';
   html += '<div class="card-label">NPUB with winning section highlighted:</div>';
   html += '<div class="npub-display">' + highlightedNpub + '</div>';
 
-  // Entropy gradient across the full NPUB
-  html += renderEntropyGradient(dataPart, result.bestPos, result.bestW);
+  // Character gradient across the full NPUB
+  html += renderCharGradient(dataPart, result.bestPos, result.bestW);
 
   // Radial + grid views side by side
   html += '<div class="card-label">Radial Fingerprint (W=' + result.bestW + ', uniq=' + result.bestUnique + ', max=' + result.bestMaxFreq + '):</div>';
@@ -1559,7 +1558,7 @@ window.generateAttacker = function() {
     }
     function finishAttacker(attackerNpub) {
       let dataPart = attackerNpub.substring(5);
-      let scan = runEntropyScanner(dataPart, parseInt(document.getElementById('minW-slider').value) || 16);
+      let scan = runPatternScanner(dataPart, parseInt(document.getElementById('minW-slider').value) || 16);
       state.attackerNpub = attackerNpub;
       state.attackerScan = scan;
 
