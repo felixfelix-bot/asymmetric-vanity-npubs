@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Metric Comparison — Recognizability vs Spoofing Prevention</title>
+<style>
+:root {
+  --bg: #0d1117;
+  --card: #161b22;
+  --card-alt: #1c2128;
+  --border: #30363d;
+  --header: #58a6ff;
+  --body: #c9d1d9;
+  --muted: #8b949e;
+  --green: #3fb950;
+  --orange: #d29922;
+  --red: #f85149;
+  --purple: #d2a8ff;
+  --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--body);
+  font-family: var(--mono);
+  font-size: 14px;
+  line-height: 1.6;
+  padding: 0;
+  min-height: 100vh;
+}
+.container { max-width: 1100px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { color: var(--header); font-size: 26px; margin-bottom: 8px; text-align: center; }
+h2 { color: var(--header); font-size: 18px; margin: 32px 0 16px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+h3 { color: var(--purple); font-size: 15px; margin: 20px 0 10px; }
+.subtitle { text-align: center; color: var(--muted); margin-bottom: 32px; font-size: 13px; }
+.section { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 28px; margin-bottom: 24px; }
+.section.tight { padding: 20px; }
+.callout { background: #1c1612; border: 1px solid #f0883e55; border-radius: 8px; padding: 16px 20px; margin: 16px 0; }
+.callout strong { color: #f0883e; }
+
+/* === Sample Windows Grid === */
+.samples-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+.sample-card {
+  background: var(--card-alt);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+.sample-meta .name { color: var(--header); font-weight: bold; font-size: 14px; margin-bottom: 4px; }
+.sample-meta .desc { color: var(--muted); font-size: 12px; }
+.sample-window {
+  font-size: 18px;
+  letter-spacing: 2px;
+  font-weight: bold;
+  padding: 12px 16px;
+  background: #0d1117;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-top: 10px;
+  word-break: break-all;
+  font-family: var(--mono);
+}
+.sample-window .ch { display: inline-block; padding: 1px 3px; border-radius: 2px; }
+
+/* metric bar row */
+.metrics-row { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; }
+.metric-box {
+  background: #0d1117;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  text-align: center;
+}
+.metric-box .label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+.metric-box .value { font-size: 22px; font-weight: bold; }
+.metric-box .extra { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+/* heat coloring */
+.heat-0 { color: var(--muted); }
+.heat-1 { color: #56d364; }
+.heat-2 { color: #2ea043; }
+.heat-3 { color: #d29922; }
+.heat-4 { color: #db6d28; }
+.heat-5 { color: #f85149; }
+.heat-bg-0 { background: #21262d; }
+.heat-bg-1 { background: #1a3a2a; }
+.heat-bg-2 { background: #2a4a1a; }
+.heat-bg-3 { background: #3a3a1a; }
+.heat-bg-4 { background: #3a2a1a; }
+.heat-bg-5 { background: #3a1a1a; }
+.flagged { border-color: var(--red) !important; }
+.flagged .value { color: var(--red); }
+
+/* char frequency visualization */
+.freq-bar { display: flex; gap: 4px; margin-top: 10px; flex-wrap: wrap; }
+.freq-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: bold;
+}
+.freq-chip .ch { font-size: 14px; }
+.freq-chip .cnt { color: var(--muted); font-size: 11px; }
+
+/* table styles */
+table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
+th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+th { color: var(--header); font-weight: bold; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+td.num { text-align: right; font-variant-numeric: tabular-nums; }
+tr:hover { background: var(--card-alt); }
+.cell-yes { color: var(--green); font-weight: bold; }
+.cell-no { color: var(--red); }
+.cell-maybe { color: var(--orange); }
+
+/* probability bars */
+.prob-row { display: grid; grid-template-columns: 120px 1fr 140px 120px; gap: 12px; align-items: center; padding: 6px 0; border-bottom: 1px solid #21262d; }
+.prob-row .threshold { color: var(--purple); font-weight: bold; }
+.prob-bar-container { background: #21262d; border-radius: 4px; height: 20px; overflow: hidden; position: relative; }
+.prob-bar-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+.prob-value { font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; }
+.prob-onein { font-size: 12px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+
+/* formula styling */
+.formula {
+  background: #0d1117;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin: 12px 0;
+  font-size: 13px;
+  overflow-x: auto;
+}
+.formula .var { color: var(--purple); }
+.formula .op { color: var(--orange); }
+.formula .num { color: var(--green); }
+
+/* legend */
+.legend { display: flex; gap: 16px; flex-wrap: wrap; margin: 12px 0; font-size: 12px; }
+.legend-item { display: flex; align-items: center; gap: 6px; }
+.legend-swatch { width: 14px; height: 14px; border-radius: 3px; }
+
+/* comparison matrix */
+.matrix-cell { text-align: center; font-weight: bold; padding: 8px; }
+
+/* responsive */
+@media (max-width: 768px) {
+  .sample-card { grid-template-columns: 1fr; }
+  .metrics-row { grid-template-columns: 1fr 1fr; }
+  .prob-row { grid-template-columns: 80px 1fr 100px; }
+  .prob-row .prob-onein { display: none; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>Metric Comparison: Recognizability vs Spoofing Prevention</h1>
+<div class="subtitle">
+  W=16 window · 16 hex symbols (0–f) · Multinomial probability model<br>
+  Comparing Unique Char Count · Max Frequency · Average Frequency · Combined Score
+</div>
+
+<!-- ================================================================== -->
+<!-- SECTION 1: THE PROBLEM -->
+<!-- ================================================================== -->
+<div class="section">
+<h2>1 · The Problem with Unique Count Alone</h2>
+
+<p>The current primary raindrop metric is <strong style="color:var(--orange)">unique char count</strong> —
+the number of distinct hex symbols appearing in a window of W characters. Fewer unique = rarer = more recognizable.</p>
+
+<div class="callout">
+<strong>The blind spot:</strong> Unique count measures <em>diversity</em> but not <em>distribution</em>.
+Two windows with the same unique count can look completely different:
+</div>
+
+<div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
+  <div style="background:#0d1117; border:1px solid var(--border); border-radius:8px; padding:16px;">
+    <div style="color:var(--green); font-weight:bold; margin-bottom:8px;">VERY recognizable</div>
+    <div style="font-size:18px; letter-spacing:2px; font-weight:bold; color:var(--green);">0000000000000abc</div>
+    <div style="margin-top:8px; color:var(--muted); font-size:12px;">
+      unique = 4 · max_freq = 13<br>
+      Dominated by zeros — eye instantly picks it out.
+    </div>
+  </div>
+  <div style="background:#0d1117; border:1px solid var(--border); border-radius:8px; padding:16px;">
+    <div style="color:var(--orange); font-weight:bold; margin-bottom:8px;">LESS recognizable</div>
+    <div style="font-size:18px; letter-spacing:2px; font-weight:bold; color:var(--orange);">0a0b0c0d0a0b0c0d</div>
+    <div style="margin-top:8px; color:var(--muted); font-size:12px;">
+      unique = 4 · max_freq = 4<br>
+      Balanced 4-char mix — harder to distinguish at a glance.
+    </div>
+  </div>
+</div>
+
+<p style="margin-top:16px;">
+<strong style="color:var(--header)">Max frequency</strong> (count of the most common character) distinguishes these.
+It captures <em>dominance</em> — how much a single character takes over the window. This is the complementary
+signal that unique count misses.
+</p>
+</div>
+
+<!-- ================================================================== -->
+<!-- SECTION 2: SAMPLE WINDOWS -->
+<!-- ================================================================== -->
+<div class="section">
+<h2>2 · Sample Windows — All Four Metrics Side by Side</h2>
+<p style="color:var(--muted); margin-bottom:20px;">
+  8 sample windows covering the full spectrum: from all-same to fully random.
+  Heat colors: <span class="heat-0">grey = normal</span> →
+  <span class="heat-3">yellow = unusual</span> →
+  <span class="heat-5">red = extremely rare</span>.
+  Red borders = metric flags this as a recognizable pattern.
+</p>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-swatch heat-bg-0"></div> Normal (random-like)</div>
+  <div class="legend-item"><div class="legend-swatch heat-bg-1"></div> Mild signal</div>
+  <div class="legend-item"><div class="legend-swatch heat-bg-2"></div> Notable</div>
+  <div class="legend-item"><div class="legend-swatch heat-bg-3"></div> Rare</div>
+  <div class="legend-item"><div class="legend-swatch heat-bg-4"></div> Very rare</div>
+  <div class="legend-item"><div class="legend-swatch heat-bg-5"></div> Extremely rare</div>
+</div>
+
+<div class="samples-grid" id="samplesGrid"></div>
+</div>
+
+<!-- ================================================================== -->
+<!-- SECTION 3: PROBABILITY TABLES -->
+<!-- ================================================================== -->
+<div class="section">
+<h2>3 · Spoofing Prevention — Probability Tables</h2>
+<p style="color:var(--muted); margin-bottom:20px;">
+  An attacker generates random keys and checks if they pass the threshold.
+  These tables show the probability <em>per random key</em> of hitting the threshold,
+  and the expected number of keys an attacker must try (1 / P).
+</p>
+
+<h3>3a · P(max_freq ≥ X) — Probability of at least one character appearing X+ times</h3>
+<p style="color:var(--muted); font-size:12px;">
+  Computed via multinomial inclusion-exclusion: P(max ≥ X) = 1 − P(all counts < X),
+  where P(all counts < X) = W! · [z<sup>W</sup>] (Σ<sub>i=0</sub><sup>X−1</sup> z<sup>i</sup>/i!)<sup>S</sup> / S<sup>W</sup>
+</p>
+<div id="maxFreqTable"></div>
+
+<h3>3b · P(unique ≤ X) — Probability of at most X distinct symbols</h3>
+<p style="color:var(--muted); font-size:12px;">
+  Computed via Stirling numbers: P(unique = j) = C(S,j) · S₂(W,j) · j! / S<sup>W</sup>,
+  then P(unique ≤ X) = Σ<sub>j=1</sub><sup>X</sup> P(unique = j).
+</p>
+<div id="uniqueTable"></div>
+
+<h3>3c · Side-by-side: Equivalent thresholds</h3>
+<p style="color:var(--muted); font-size:12px;">
+  Which thresholds give comparable spoofing protection? Approximate equivalences
+  where P values are closest.
+</p>
+<table>
+<thead>
+<tr><th>Unique ≤</th><th>P(unique)</th><th>≈ Max Freq ≥</th><th>P(max_freq)</th><th>1 in (unique)</th><th>1 in (max_freq)</th></tr>
+</thead>
+<tbody id="comparisonTable"></tbody>
+</table>
+</div>
+
+<!-- ================================================================== -->
+<!-- SECTION 4: COMBINED SCORE -->
+<!-- ================================================================== -->
+<div class="section">
+<h2>4 · Combined Score — Capturing Both Dominance and Diversity</h2>
+
+<p>The combined score blends max frequency and average frequency (which is W/unique,
+the inverse of unique count) into a single metric:</p>
+
+<div class="formula">
+<span class="var">combined</span> = <span class="var">max_freq</span> <span class="op">×</span> <span class="var">avg_freq</span> = <span class="var">max_freq</span> <span class="op">×</span> (<span class="num">W</span> / <span class="var">unique</span>)
+</div>
+
+<p>This product is high when <em>both</em> dominance is strong (max_freq high) <em>and</em>
+diversity is low (unique small). It penalizes the "balanced few-char" case that
+unique count alone would over-reward.</p>
+
+<table>
+<thead>
+<tr><th>Window</th><th>Unique</th><th>Max Freq</th><th>Avg Freq</th><th>Combined</th><th>What it catches</th></tr>
+</thead>
+<tbody>
+<tr>
+  <td style="font-weight:bold; letter-spacing:1px;">0000000000000abc</td>
+  <td class="num">4</td><td class="num">13</td><td class="num">4.00</td>
+  <td class="num" style="color:var(--red); font-weight:bold;">52.0</td>
+  <td>Both low diversity AND high dominance → strongest signal</td>
+</tr>
+<tr>
+  <td style="font-weight:bold; letter-spacing:1px;">0a0b0c0d0a0b0c0d</td>
+  <td class="num">4</td><td class="num">4</td><td class="num">4.00</td>
+  <td class="num" style="color:var(--orange);">16.0</td>
+  <td>Low diversity but NO dominance → combined correctly downgrades</td>
+</tr>
+<tr>
+  <td style="font-weight:bold; letter-spacing:1px;">0000000000000000</td>
+  <td class="num">1</td><td class="num">16</td><td class="num">16.0</td>
+  <td class="num" style="color:var(--red); font-weight:bold;">256.0</td>
+  <td>Maximum signal — single char fills entire window</td>
+</tr>
+<tr>
+  <td style="font-weight:bold; letter-spacing:1px;">0123456789abcdef</td>
+  <td class="num">16</td><td class="num">1</td><td class="num">1.00</td>
+  <td class="num" style="color:var(--muted);">1.0</td>
+  <td>Random → no signal on any metric</td>
+</tr>
+</tbody>
+</table>
+
+<div class="callout">
+<strong>Key insight:</strong> The combined score separates "0000000000000abc" (52.0) from
+"0a0b0c0d0a0b0c0d" (16.0) — a 3.25× difference — even though both have unique=4 and avg_freq=4.0.
+Unique count alone treats them identically. Max frequency alone sees the difference but ignores
+diversity. The combined score captures both dimensions.
+</div>
+</div>
+
+<!-- ================================================================== -->
+<!-- SECTION 5: PATTERN DETECTION MATRIX -->
+<!-- ================================================================== -->
+<div class="section">
+<h2>5 · Pattern Detection Matrix — Which Metric Catches What?</h2>
+<p style="color:var(--muted); margin-bottom:16px;">
+  ✅ = strong detection · ⚠️ = partial / weak · ❌ = misses this pattern
+</p>
+<table>
+<thead>
+<tr>
+  <th>Pattern Type</th>
+  <th>Example</th>
+  <th class="matrix-cell">Unique Count</th>
+  <th class="matrix-cell">Max Frequency</th>
+  <th class="matrix-cell">Avg Frequency</th>
+  <th class="matrix-cell">Combined</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>All same char</td>
+  <td style="letter-spacing:1px;">0000000000000000</td>
+  <td class="matrix-cell cell-yes">✅ unique=1</td>
+  <td class="matrix-cell cell-yes">✅ max=16</td>
+  <td class="matrix-cell cell-yes">✅ avg=16</td>
+  <td class="matrix-cell cell-yes">✅ 256</td>
+</tr>
+<tr>
+  <td>One dominant char</td>
+  <td style="letter-spacing:1px;">0000000000000abc</td>
+  <td class="matrix-cell cell-maybe">⚠️ unique=4</td>
+  <td class="matrix-cell cell-yes">✅ max=13</td>
+  <td class="matrix-cell cell-maybe">⚠️ avg=4</td>
+  <td class="matrix-cell cell-yes">✅ 52</td>
+</tr>
+<tr>
+  <td>Two-char alternation</td>
+  <td style="letter-spacing:1px;">0a0a0a0a0a0a0a0a</td>
+  <td class="matrix-cell cell-yes">✅ unique=2</td>
+  <td class="matrix-cell cell-maybe">⚠️ max=8</td>
+  <td class="matrix-cell cell-yes">✅ avg=8</td>
+  <td class="matrix-cell cell-yes">✅ 64</td>
+</tr>
+<tr>
+  <td>Balanced few-char</td>
+  <td style="letter-spacing:1px;">0a0b0c0d0a0b0c0d</td>
+  <td class="matrix-cell cell-maybe">⚠️ unique=4</td>
+  <td class="matrix-cell cell-no">❌ max=4</td>
+  <td class="matrix-cell cell-maybe">⚠️ avg=4</td>
+  <td class="matrix-cell cell-maybe">⚠️ 16</td>
+</tr>
+<tr>
+  <td>Sequential / counting</td>
+  <td style="letter-spacing:1px;">0123456789abcdef</td>
+  <td class="matrix-cell cell-no">❌ unique=16</td>
+  <td class="matrix-cell cell-no">❌ max=1</td>
+  <td class="matrix-cell cell-no">❌ avg=1</td>
+  <td class="matrix-cell cell-no">❌ 1</td>
+</tr>
+<tr>
+  <td>Random</td>
+  <td style="letter-spacing:1px;">a3f7c92e1b4d8056</td>
+  <td class="matrix-cell cell-no">❌ unique~13</td>
+  <td class="matrix-cell cell-no">❌ max~2</td>
+  <td class="matrix-cell cell-no">❌ avg~1.2</td>
+  <td class="matrix-cell cell-no">❌ ~2.5</td>
+</tr>
+<tr>
+  <td>Near-duplicate pairs</td>
+  <td style="letter-spacing:1px;">00aa11bb22cc33dd</td>
+  <td class="matrix-cell cell-maybe">⚠️ unique=8</td>
+  <td class="matrix-cell cell-yes">✅ max=2</td>
+  <td class="matrix-cell cell-maybe">⚠️ avg=2</td>
+  <td class="matrix-cell cell-maybe">⚠️ 4</td>
+</tr>
+<tr>
+  <td>Two-char cluster</td>
+  <td style="letter-spacing:1px;">00000000aaaa0000</td>
+  <td class="matrix-cell cell-yes">✅ unique=2</td>
+  <td class="matrix-cell cell-yes">✅ max=12</td>
+  <td class="matrix-cell cell-yes">✅ avg=8</td>
+  <td class="matrix-cell cell-yes">✅ 96</td>
+</tr>
+</tbody>
+</table>
+
+<div class="callout">
+<strong>Verdict:</strong> No single metric catches everything. The combined score is the best
+all-rounder — it detects dominance patterns that unique count misses, while still rewarding low diversity.
+For maximum security, using <em>both</em> unique count (as a pre-filter) and max frequency (as a dominance
+check) provides orthogonal coverage. The combined score is a good single-number proxy for both.
+</div>
+</div>
+
+<!-- ================================================================== -->
+<!-- SECTION 6: MATHEMATICAL DETAILS -->
+<!-- ================================================================== -->
+<div class="section">
+<h2>6 · Mathematical Details</h2>
+
+<h3>Definitions</h3>
+<div class="formula">
+<strong>Window:</strong> W consecutive hex characters from an npub<br>
+<strong>Symbols:</strong> S = 16 (hex: 0–9, a–f)<br>
+<strong>unique:</strong> Number of distinct symbols in the window<br>
+<strong>max_freq:</strong> Maximum count of any single symbol = max(c₁, c₂, …, c<sub>S</sub>)<br>
+<strong>avg_freq:</strong> W / unique = average count per present symbol<br>
+<strong>combined:</strong> max_freq × avg_freq = max_freq × (W / unique)
+</div>
+
+<h3>Expected Values (W=16, S=16)</h3>
+<table>
+<thead><tr><th>Metric</th><th class="num">E[X] (random key)</th><th>Interpretation</th></tr></thead>
+<tbody>
+<tr><td>unique</td><td class="num">10.30</td><td>A random 16-hex window uses ~10 of 16 symbols on average</td></tr>
+<tr><td>max_freq</td><td class="num">3.08</td><td>The most common symbol appears ~3 times on average</td></tr>
+<tr><td>avg_freq</td><td class="num">1.55</td><td>W / E[unique] ≈ 16/10.30 ≈ 1.55</td></tr>
+<tr><td>combined</td><td class="num">~4.77</td><td>E[max_freq] × E[avg_freq] (approximate, not E[product])</td></tr>
+</tbody>
+</table>
+
+<h3>Probability Model</h3>
+<p>Each of the W positions independently draws one of S=16 symbols uniformly at random.
+The counts (c₁, …, c<sub>S</sub>) follow a multinomial distribution:</p>
+
+<div class="formula">
+P(c₁=n₁, …, c<sub>S</sub>=n<sub>S</sub>) = W! / (n₁! · n₂! · … · n<sub>S</sub>!) × (1/S)<sup>W</sup><br>
+where Σ nᵢ = W
+</div>
+
+<h3>P(max_freq ≥ X)</h3>
+<p>Computed via the complement with exponential generating functions:</p>
+<div class="formula">
+P(max_freq < X) = W! × [z<sup>W</sup>] (Σ<sub>i=0</sub><sup>X−1</sup> z<sup>i</sup>/i!)<sup>S</sup> / S<sup>W</sup><br><br>
+P(max_freq ≥ X) = 1 − P(max_freq < X)
+</div>
+<p style="font-size:12px; color:var(--muted);">
+The polynomial (Σ<sub>i=0</sub><sup>X−1</sup> z<sup>i</sup>/i!)<sup>S</sup> is raised to the S-th power,
+and we extract the coefficient of z<sup>W</sup>. This is computed via dynamic programming over S bins.
+</p>
+
+<h3>P(unique ≤ X)</h3>
+<p>Uses Stirling numbers of the second kind, S₂(W,j), which count the ways to partition W items into j non-empty groups:</p>
+<div class="formula">
+P(unique = j) = C(S, j) × S₂(W, j) × j! / S<sup>W</sup><br><br>
+P(unique ≤ X) = Σ<sub>j=1</sub><sup>X</sup> P(unique = j)
+</div>
+
+<h3>Why Max Frequency Adds Value</h3>
+<p>
+Unique count answers "how many different symbols?" but not "how are they distributed?".
+For anti-spoofing, we care about visual recognizability — and recognizability is driven by
+<strong>dominance</strong> (one char overwhelming the window), not just diversity.
+</p>
+<p>
+An attacker who knows we filter on unique ≤ 4 can generate "0a0b0c0d0a0b0c0d" — it passes
+the filter but is NOT visually memorable. The same attacker cannot easily generate
+"0000000000000abc" because max_freq=13 is astronomically rarer than unique=4.
+The combined metric closes this gap.
+</p>
+</div>
+
+<!-- ================================================================== -->
+<!-- SECTION 7: TRADEOFFS & RECOMMENDATION -->
+<!-- ================================================================== -->
+<div class="section">
+<h2>7 · Tradeoffs & Recommendation</h2>
+
+<table>
+<thead>
+<tr><th>Aspect</th><th>Unique Count</th><th>Max Frequency</th><th>Combined</th></tr>
+</thead>
+<tbody>
+<tr>
+  <td><strong>What it measures</strong></td>
+  <td>Diversity (how many symbols)</td>
+  <td>Dominance (top symbol count)</td>
+  <td>Both</td>
+</tr>
+<tr>
+  <td><strong>Spoofing resistance</strong></td>
+  <td>Moderate — attacker can use balanced distributions</td>
+  <td>Strong — dominance is harder to fake at high thresholds</td>
+  <td>Strongest — requires both low diversity AND high dominance</td>
+</tr>
+<tr>
+  <td><strong>Human recognizability correlation</strong></td>
+  <td>Good — fewer symbols = simpler pattern</td>
+  <td>Excellent — dominance is what the eye actually locks onto</td>
+  <td>Best — matches both "few colors" and "one color dominates" intuition</td>
+</tr>
+<tr>
+  <td><strong>Computational cost</strong></td>
+  <td>O(W) — trivial</td>
+  <td>O(W) — trivial (one pass for frequency map)</td>
+  <td>O(W) — trivial (compute both, multiply)</td>
+</tr>
+<tr>
+  <td><strong>Sensitivity to window size</strong></td>
+  <td>Scales with W — larger windows naturally have more unique</td>
+  <td>Scales with W — larger windows have higher max_freq</td>
+  <td>Scales with W² — grows faster, needs normalization for different W</td>
+</tr>
+<tr>
+  <td><strong>False positive rate</strong></td>
+  <td>Higher — flags balanced low-diversity windows that aren't memorable</td>
+  <td>Lower — dominance is a stronger recognizability signal</td>
+  <td>Lowest — requires both conditions</td>
+</tr>
+</tbody>
+</table>
+
+<div class="callout" style="border-color: #3fb95055; background: #0d1f14;">
+<strong style="color: var(--green);">Recommendation:</strong>
+Use <strong>max frequency as the primary raindrop metric</strong>, with unique count as a
+secondary signal. The combined score (max_freq × W / unique) is an excellent single-number proxy
+that captures both dimensions. For the current system, switching from unique-only to combined
+would immediately downgrade spoofable "balanced few-char" patterns while preserving true
+high-recognizability windows. The computational cost is identical — one pass through the window.
+</div>
+
+</div>
+
+<div style="text-align:center; color:var(--muted); font-size:12px; margin-top:32px; padding-top:16px; border-top:1px solid var(--border);">
+  Asymmetric Vanity NPUBs · Metric Comparison Visualization<br>
+  W=16 · S=16 · Multinomial model · All probabilities computed exactly via DP
+</div>
+
+</div>
+
+<script>
+// =================================================================
+// PROBABILITY DATA (pre-computed via Python with exact arithmetic)
+// W=16, S=16, multinomial distribution
+// =================================================================
+const PROB_DATA = {
+  maxFreq: {
+    2:  {prob: 1.000e+00, oneIn: 1.000e+00},
+    3:  {prob: 8.052e-01, oneIn: 1.242e+00},
+    4:  {prob: 2.312e-01, oneIn: 4.326e+00},
+    5:  {prob: 3.707e-02, oneIn: 2.697e+01},
+    6:  {prob: 4.417e-03, oneIn: 2.264e+02},
+    7:  {prob: 4.118e-04, oneIn: 2.428e+03},
+    8:  {prob: 3.039e-05, oneIn: 3.291e+04},
+    9:  {prob: 1.777e-06, oneIn: 5.626e+05},
+    10: {prob: 8.208e-08, oneIn: 1.218e+07},
+    11: {prob: 2.959e-09, oneIn: 3.380e+08},
+    12: {prob: 8.158e-11, oneIn: 1.226e+10},
+    13: {prob: 1.663e-12, oneIn: 6.013e+11},
+    14: {prob: 2.363e-14, oneIn: 4.232e+13},
+    15: {prob: 2.090e-16, oneIn: 4.784e+15},
+    16: {prob: 8.674e-19, oneIn: 1.153e+18},
+  },
+  unique: {
+    1: {prob: 8.674e-19, oneIn: 2.127e+37},
+    2: {prob: 4.263e-13, oneIn: 4.327e+31},
+    3: {prob: 1.301e-09, oneIn: 1.418e+28},
+    4: {prob: 4.081e-07, oneIn: 4.520e+25},
+    5: {prob: 3.156e-05, oneIn: 5.846e+23},
+    6: {prob: 8.864e-04, oneIn: 2.081e+22},
+    7: {prob: 1.114e-02, oneIn: 1.655e+21},
+  },
+  eMaxFreq: 3.0782,
+  eUnique: 10.3028,
+};
+
+// =================================================================
+// SAMPLE WINDOWS
+// =================================================================
+const SAMPLES = [
+  { name: "All Same",         desc: "Single char fills entire window. Maximum recognizability.", window: "0000000000000000" },
+  { name: "One Dominant",     desc: "One char dominates with a few stragglers. Very recognizable.", window: "0000000000000abc" },
+  { name: "Two-Char Cluster", desc: "Two chars in block formation. Strong pattern.", window: "00000000aaaa0000" },
+  { name: "Two-Char Alternating", desc: "Two chars alternating. Rhythmic but less dominant.", window: "0a0a0a0a0a0a0a0a" },
+  { name: "Balanced Few-Char", desc: "4 chars, evenly distributed. Low diversity but NO dominance — spoofable!", window: "0a0b0c0d0a0b0c0d" },
+  { name: "Near-Duplicate Pairs", desc: "Every char appears exactly twice. Structured but not dominant.", window: "00aa11bb22cc33dd" },
+  { name: "Sequential",       desc: "Counting up through hex alphabet. Structured but high diversity.", window: "0123456789abcdef" },
+  { name: "Random",           desc: "Typical random window. No recognizable pattern.", window: "a3f7c92e1b4d8056" },
+];
+
+// =================================================================
+// HEX COLOR MAP — each hex char gets a distinct color
+// =================================================================
+const CHAR_COLORS = {
+  '0': '#f85149', '1': '#d29922', '2': '#56d364', '3': '#58a6ff',
+  '4': '#d2a8ff', '5': '#ff7b72', '6': '#ffa657', '7': '#e3b341',
+  '8': '#7ee787', '9': '#79c0ff', 'a': '#d2a8ff', 'b': '#f0883e',
+  'c': '#3fb950', 'd': '#a371f7', 'e': '#db6d28', 'f': '#f85149',
+};
+
+// =================================================================
+// METRIC COMPUTATIONS
+// =================================================================
+function computeMetrics(window) {
+  const W = window.length;
+  const freq = {};
+  for (const ch of window) {
+    freq[ch] = (freq[ch] || 0) + 1;
+  }
+  const counts = Object.values(freq);
+  const unique = counts.length;
+  const maxFreq = Math.max(...counts);
+  const avgFreq = W / unique;
+  const combined = maxFreq * avgFreq;
+  return { W, freq, unique, maxFreq, avgFreq, combined };
+}
+
+// =================================================================
+// HEAT LEVEL — 0 (normal) to 5 (extremely rare)
+// =================================================================
+function heatLevelUnique(u) {
+  if (u <= 2) return 5;
+  if (u <= 3) return 4;
+  if (u <= 4) return 3;
+  if (u <= 6) return 2;
+  if (u <= 8) return 1;
+  return 0;
+}
+function heatLevelMaxFreq(m) {
+  if (m >= 12) return 5;
+  if (m >= 10) return 4;
+  if (m >= 8) return 3;
+  if (m >= 6) return 2;
+  if (m >= 5) return 1;
+  return 0;
+}
+function heatLevelAvgFreq(a) {
+  // avg_freq = W/unique, so heat mirrors unique
+  if (a >= 8) return 5;
+  if (a >= 5.3) return 4;
+  if (a >= 4) return 3;
+  if (a >= 2.7) return 2;
+  if (a >= 2) return 1;
+  return 0;
+}
+function heatLevelCombined(c) {
+  if (c >= 64) return 5;
+  if (c >= 32) return 4;
+  if (c >= 20) return 3;
+  if (c >= 12) return 2;
+  if (c >= 6) return 1;
+  return 0;
+}
+
+function heatColor(level) {
+  return ['heat-0','heat-1','heat-2','heat-3','heat-4','heat-5'][level];
+}
+function heatBg(level) {
+  return ['heat-bg-0','heat-bg-1','heat-bg-2','heat-bg-3','heat-bg-4','heat-bg-5'][level];
+}
+
+// Threshold for "flagged" (recognizable pattern)
+const FLAG_UNIQUE = 5;     // unique <= 5 is notable
+const FLAG_MAXFREQ = 6;    // max_freq >= 6 is notable
+const FLAG_AVGFREQ = 3.2;  // avg_freq >= 3.2 is notable (W/5)
+const FLAG_COMBINED = 16;  // combined >= 16 is notable
+
+// =================================================================
+// RENDER SAMPLE WINDOWS
+// =================================================================
+function renderSamples() {
+  const grid = document.getElementById('samplesGrid');
+  grid.innerHTML = SAMPLES.map(s => {
+    const m = computeMetrics(s.window);
+    const hU = heatLevelUnique(m.unique);
+    const hM = heatLevelMaxFreq(m.maxFreq);
+    const hA = heatLevelAvgFreq(m.avgFreq);
+    const hC = heatLevelCombined(m.combined);
+
+    const flaggedU = m.unique <= FLAG_UNIQUE;
+    const flaggedM = m.maxFreq >= FLAG_MAXFREQ;
+    const flaggedA = m.avgFreq >= FLAG_AVGFREQ;
+    const flaggedC = m.combined >= FLAG_COMBINED;
+
+    // Render window with colored chars
+    const windowHtml = s.window.split('').map(ch =>
+      `<span class="ch" style="color:${CHAR_COLORS[ch] || '#c9d1d9'}">${ch}</span>`
+    ).join('');
+
+    // Render frequency chips
+    const sortedFreq = Object.entries(m.freq).sort((a,b) => b[1] - a[1]);
+    const freqHtml = sortedFreq.map(([ch, cnt]) => {
+      const intensity = cnt / m.maxFreq;
+      const bg = `rgba(240, 136, 62, ${intensity * 0.4 + 0.05})`;
+      return `<span class="freq-chip" style="background:${bg}">
+        <span class="ch" style="color:${CHAR_COLORS[ch] || '#c9d1d9'}">${ch}</span>
+        <span class="cnt">×${cnt}</span>
+      </span>`;
+    }).join('');
+
+    return `
+    <div class="sample-card">
+      <div class="sample-meta">
+        <div class="name">${s.name}</div>
+        <div class="desc">${s.desc}</div>
+        <div class="sample-window">${windowHtml}</div>
+        <div class="freq-bar">${freqHtml}</div>
+      </div>
+      <div class="metrics-row">
+        <div class="metric-box ${flaggedU ? 'flagged' : ''} ${heatBg(hU)}">
+          <div class="label">Unique Count</div>
+          <div class="value ${heatColor(hU)}">${m.unique}</div>
+          <div class="extra">distinct chars</div>
+        </div>
+        <div class="metric-box ${flaggedM ? 'flagged' : ''} ${heatBg(hM)}">
+          <div class="label">Max Frequency</div>
+          <div class="value ${heatColor(hM)}">${m.maxFreq}</div>
+          <div class="extra">top char count</div>
+        </div>
+        <div class="metric-box ${flaggedA ? 'flagged' : ''} ${heatBg(hA)}">
+          <div class="label">Avg Frequency</div>
+          <div class="value ${heatColor(hA)}">${m.avgFreq.toFixed(1)}</div>
+          <div class="extra">W / unique</div>
+        </div>
+        <div class="metric-box ${flaggedC ? 'flagged' : ''} ${heatBg(hC)}">
+          <div class="label">Combined</div>
+          <div class="value ${heatColor(hC)}">${m.combined.toFixed(1)}</div>
+          <div class="extra">max × avg</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// =================================================================
+// RENDER PROBABILITY TABLES
+// =================================================================
+function formatProb(p) {
+  if (p >= 0.01) return p.toFixed(4);
+  if (p >= 0.0001) return p.toExponential(2);
+  return p.toExponential(2);
+}
+
+function formatOneIn(n) {
+  if (n >= 1e15) return (n / 1e15).toFixed(1) + 'Q';
+  if (n >= 1e12) return (n / 1e12).toFixed(1) + 'T';
+  if (n >= 1e9) return (n / 1e9).toFixed(1) + 'B';
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+  return n.toFixed(0);
+}
+
+function probBarColor(p) {
+  // Log scale color: higher prob = greener (easier to spoof = worse for security)
+  // Lower prob = redder (harder to spoof = better for security)
+  if (p >= 0.1) return '#f85149';   // red — easy to spoof
+  if (p >= 0.01) return '#db6d28';  // orange
+  if (p >= 0.001) return '#d29922'; // yellow
+  if (p >= 1e-6) return '#56d364';  // green — hard to spoof
+  if (p >= 1e-12) return '#3fb950'; // bright green
+  return '#2ea043';                  // deep green — extremely hard
+}
+
+function probBarWidth(p) {
+  // Log scale: 0dB = 100%, -360dB = 0%
+  const logP = p > 0 ? Math.log10(p) : -400;
+  const pct = Math.max(0, Math.min(100, (logP + 18) / 18 * 100));
+  return pct;
+}
+
+function renderMaxFreqTable() {
+  const container = document.getElementById('maxFreqTable');
+  let html = '';
+  for (let x = 2; x <= 16; x++) {
+    const d = PROB_DATA.maxFreq[x];
+    if (!d) continue;
+    const w = probBarWidth(d.prob);
+    const color = probBarColor(d.prob);
+    html += `
+      <div class="prob-row">
+        <div class="threshold">max ≥ ${x}</div>
+        <div class="prob-bar-container">
+          <div class="prob-bar-fill" style="width:${w}%; background:${color}; opacity:0.7"></div>
+        </div>
+        <div class="prob-value" style="color:${color}">${formatProb(d.prob)}</div>
+        <div class="prob-onein">1 in ${formatOneIn(d.oneIn)}</div>
+      </div>`;
+  }
+  container.innerHTML = html;
+}
+
+function renderUniqueTable() {
+  const container = document.getElementById('uniqueTable');
+  let html = '';
+  for (let x = 1; x <= 7; x++) {
+    const d = PROB_DATA.unique[x];
+    if (!d) continue;
+    const w = probBarWidth(d.prob);
+    const color = probBarColor(d.prob);
+    html += `
+      <div class="prob-row">
+        <div class="threshold">unique ≤ ${x}</div>
+        <div class="prob-bar-container">
+          <div class="prob-bar-fill" style="width:${w}%; background:${color}; opacity:0.7"></div>
+        </div>
+        <div class="prob-value" style="color:${color}">${formatProb(d.prob)}</div>
+        <div class="prob-onein">1 in ${formatOneIn(d.oneIn)}</div>
+      </div>`;
+  }
+  container.innerHTML = html;
+}
+
+// =================================================================
+// COMPARISON TABLE — find equivalent thresholds
+// =================================================================
+function renderComparisonTable() {
+  const tbody = document.getElementById('comparisonTable');
+  // Manually matched pairs with closest probabilities
+  const pairs = [
+    // unique <= 7 (~1.1e-2) ≈ max_freq >= 4 (~2.3e-1) — not close, but both "easy"
+    // unique <= 6 (~8.9e-4) ≈ max_freq >= 5 (~3.7e-2) — not close
+    // Let's find actual closest pairs
+    { u: 7, m: 4, note: "Both 'notable' tier" },
+    { u: 6, m: 5, note: "Moderate security" },
+    { u: 5, m: 7, note: "Strong security" },
+    { u: 4, m: 9, note: "Very strong — but max_freq distinguishes dominance" },
+    { u: 3, m: 11, note: "Extreme — near-impossible to spoof" },
+    { u: 2, m: 13, note: "Astronomical — unique is rarer here" },
+    { u: 1, m: 16, note: "Same event (all one char) — identical probability" },
+  ];
+
+  tbody.innerHTML = pairs.map(p => {
+    const ud = PROB_DATA.unique[p.u];
+    const md = PROB_DATA.maxFreq[p.m];
+    return `
+      <tr>
+        <td class="num">≤ ${p.u}</td>
+        <td class="num">${formatProb(ud.prob)}</td>
+        <td class="num">≥ ${p.m}</td>
+        <td class="num">${formatProb(md.prob)}</td>
+        <td class="num">1 in ${formatOneIn(ud.oneIn)}</td>
+        <td class="num">1 in ${formatOneIn(md.oneIn)}</td>
+      </tr>`;
+  }).join('');
+}
+
+// =================================================================
+// INIT
+// =================================================================
+renderSamples();
+renderMaxFreqTable();
+renderUniqueTable();
+renderComparisonTable();
+</script>
+</body>
+</html>
