@@ -1017,15 +1017,14 @@ function runPatternScanner(dataStr, W) {
   for (let pos = 0; pos <= dataStr.length - W; pos++) {
     let window = dataStr.substring(pos, pos + W);
     let uniq = uniqueCharCount(window);
-    allResults.push({W, pos, uniq, expectedUnique: bestExpected, quality: uniq});
+    allResults.push({W, pos, uniq, expectedUnique: bestExpected, rarity: bestExpected - uniq});
     if (uniq < bestUnique) {
       bestUnique = uniq;
       bestPos = pos;
     }
   }
-  // bestQuality = bestUnique (lower = better)
-  let bestQuality = bestUnique;
-  return {bestW, bestPos, bestUnique, bestExpected, bestQuality, allResults};
+  let bestRarity = bestExpected - bestUnique;
+  return {bestRarity, bestW, bestPos, bestUnique, bestExpected, allResults};
 }
 
 // ─── Color Map ─────────────────────────────────────────────────────────────
@@ -1323,12 +1322,11 @@ window.generateSection2 = function() {
         // Immediately scan this candidate for unique-char outlier
         let dp = npub.substring(5);
         let scan = runPatternScanner(dp, minW);
-        if (!best || scan.bestQuality > best.scan.bestQuality) {
+        if (!best || scan.bestUnique < best.scan.bestUnique) {
           // Old best becomes second
           if (best) second = best;
           best = { npub, scan };
-          bestRarity = scan.bestRarity;
-        } else if (!second || scan.bestQuality < second.scan.bestQuality) {
+        } else if (!second || scan.bestUnique < second.scan.bestUnique) {
           second = { npub, scan };
         }
         // Keep a fallback Key B (first sat NPUB that isn't the best)
