@@ -776,12 +776,8 @@
     <h3 style="color:var(--header);font-size:18px;margin-top:24px;margin-bottom:8px;">Mining in Progress</h3>
     <p style="color:var(--body);font-size:13px;">Mining started automatically when you entered this section. You don't need to press anything.</p>
     <div class="slider-container" id="sec2-slider-box" style="display:none;">
-      <label class="slider-label">Fingerprint window size: <span id="minW-label">9</span> chars (<span id="minW-grid">3×3</span> grid)</label>
-      <input type="range" id="minW-slider" min="9" max="49" step="1" value="9" class="slider" onchange="snapSlider(); updateMinWLabel();" oninput="updateMinWLabel();">
-      <div class="slider-marks">
-        <span>3×3</span><span>4×4</span><span>5×5</span><span>6×6</span><span>7×7</span>
-      </div>
-      <div class="note" style="font-size:11px;">Scanner uses exactly this window size. Smaller = more recognizable. Larger = harder to forge.</div>
+      <input type="hidden" id="minW-slider" value="9">
+      <div class="note" style="font-size:13px;">Scanner uses a <strong>3×3 grid (W=9)</strong> window. Finding 3-4 unique characters out of 9 makes a highly recognizable pattern.</div>
     </div>
     <button id="btn2" onclick="generateSection2()" style="display:none;">Regenerate</button>
     <div id="s2-result"></div>
@@ -1285,26 +1281,7 @@ function hexToBuf(hex) {
 }
 
 // ─── SECTION 2: No Asymmetry ───────────────────────────────────────────────
-const SQUARES = [9, 16, 25, 36, 49];
-window.snapSlider = function() {
-  let slider = document.getElementById('minW-slider');
-  let val = parseInt(slider.value);
-  let nearest = SQUARES[0];
-  let bestDist = Math.abs(val - nearest);
-  for (let s of SQUARES) {
-    let d = Math.abs(val - s);
-    if (d < bestDist) { nearest = s; bestDist = d; }
-  }
-  slider.value = nearest;
-};
-
-window.updateMinWLabel = function() {
-  let slider = document.getElementById('minW-slider');
-  let val = parseInt(slider.value);
-  document.getElementById('minW-label').textContent = val;
-  let grid = Math.sqrt(val);
-  document.getElementById('minW-grid').textContent = grid + '×' + grid;
-};
+// W is fixed at 9 (3×3 grid) — no slider
 
 window.generateSection2 = function() {
   let btn = document.getElementById('btn2');
